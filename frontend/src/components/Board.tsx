@@ -11,7 +11,9 @@ import {
 } from "@dnd-kit/core";
 
 import { CardModal } from "@/components/CardModal";
+import { ChatSidebar } from "@/components/ChatSidebar";
 import { KanbanColumn } from "@/components/KanbanColumn";
+import { useChat } from "@/hooks/useChat";
 import { useKanbanBoard } from "@/hooks/useKanbanBoard";
 import type { Card } from "@/types/kanban";
 
@@ -31,8 +33,11 @@ export function Board({ onLogout }: BoardProps) {
     moveCard,
     createCard,
     deleteCard,
+    applyBoard,
   } = useKanbanBoard();
   const [activeCard, setActiveCard] = useState<Card | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const chat = useChat(applyBoard);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -66,47 +71,66 @@ export function Board({ onLogout }: BoardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-white p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="inline-block border-b-4 border-accent-yellow pb-1 text-2xl font-bold text-dark-navy">
-          Kanban Board
-        </h1>
-        <button
-          onClick={onLogout}
-          className="rounded px-4 py-2 text-gray-text hover:bg-gray-100"
-        >
-          Log out
-        </button>
+    <div className="flex h-screen bg-white">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="inline-block border-b-4 border-accent-yellow pb-1 text-2xl font-bold text-dark-navy">
+            Kanban Board
+          </h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSidebarOpen((open) => !open)}
+              className="rounded px-4 py-2 text-gray-text hover:bg-gray-100"
+            >
+              {sidebarOpen ? "Hide assistant" : "Show assistant"}
+            </button>
+            <button
+              onClick={onLogout}
+              className="rounded px-4 py-2 text-gray-text hover:bg-gray-100"
+            >
+              Log out
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <p className="mb-4 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+        )}
+
+        {loading ? (
+          <p className="text-gray-text">Loading board...</p>
+        ) : (
+          <DndContext
+            id="kanban-board"
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {[...columns]
+                .sort((a, b) => a.order - b.order)
+                .map((column) => (
+                  <KanbanColumn
+                    key={column.id}
+                    column={column}
+                    cards={cardsByColumn(cards, column.id)}
+                    onRename={(name) => renameColumn(column.id, name)}
+                    onCardClick={setActiveCard}
+                    onAddCard={() => createCard(column.id, "New card")}
+                  />
+                ))}
+            </div>
+          </DndContext>
+        )}
       </div>
 
-      {error && (
-        <p className="mb-4 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
-      )}
-
-      {loading ? (
-        <p className="text-gray-text">Loading board...</p>
-      ) : (
-        <DndContext
-          id="kanban-board"
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {[...columns]
-              .sort((a, b) => a.order - b.order)
-              .map((column) => (
-                <KanbanColumn
-                  key={column.id}
-                  column={column}
-                  cards={cardsByColumn(cards, column.id)}
-                  onRename={(name) => renameColumn(column.id, name)}
-                  onCardClick={setActiveCard}
-                  onAddCard={() => createCard(column.id, "New card")}
-                />
-              ))}
-          </div>
-        </DndContext>
+      {sidebarOpen && (
+        <ChatSidebar
+          messages={chat.messages}
+          loading={chat.loading}
+          error={chat.error}
+          onSend={chat.send}
+        />
       )}
 
       {activeCard && (

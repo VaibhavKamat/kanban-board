@@ -156,6 +156,11 @@ def ai_test_route(username: str = Depends(require_auth)):
     return {"reply": reply}
 
 
+@app.get("/api/messages")
+def get_messages_route(username: str = Depends(require_auth)):
+    return {"messages": board.get_recent_messages(username)}
+
+
 @app.post("/api/chat")
 def chat_route(body: ChatRequest, username: str = Depends(require_auth)):
     # Broad except for the same reason as /api/ai-test: this is a system

@@ -22,6 +22,9 @@ Next.js 16 (App Router, TypeScript, Tailwind CSS v4), configured for static expo
 - `src/components/KanbanColumn.tsx` - one column: fixed name/key, inline rename (click to edit, Enter/blur to commit, empty names are rejected), droppable + sortable card list, and a "+ Add card" button that creates a card with a default title via `createCard`.
 - `src/components/KanbanCard.tsx` - one card, draggable via `@dnd-kit/sortable`.
 - `src/components/CardModal.tsx` - edit modal for a card's title/description, plus a "Delete" button that calls `deleteCard` and closes the modal.
+- `src/hooks/useChat.ts` - loads chat history on mount (`GET /api/messages`), and on `send()`: appends the user's message optimistically, calls `POST /api/chat`, appends the reply, then hands the response's `board` field to `useKanbanBoard`'s `applyBoard` - no separate `GET /api/board` call, no polling. The mount-time history load *merges* (`[...history, ...prev]`) rather than overwrites, so a message sent before history finishes loading isn't silently dropped - this was a real race caught by `useChat.test.ts`, not a hypothetical.
+- `src/components/ChatSidebar.tsx` - message list + input + send button, styled per the color scheme (purple secondary send button, blue-primary user bubbles). Purely presentational - all state lives in `useChat`.
+- `src/components/Board.tsx` also renders `ChatSidebar` alongside the board (toggleable via a header button, open by default) and owns the `useChat(applyBoard)` wiring.
 
 ## Data model
 

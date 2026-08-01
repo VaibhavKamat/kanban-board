@@ -63,3 +63,25 @@ export function updateCard(cardId: string, updates: CardUpdate): Promise<Board> 
 export function deleteCard(cardId: string): Promise<Board> {
   return request<Board>(`/api/cards/${cardId}`, { method: "DELETE" });
 }
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+export function getMessages(): Promise<ChatMessage[]> {
+  return request<{ messages: ChatMessage[] }>("/api/messages").then((r) => r.messages);
+}
+
+export interface ChatResult {
+  reply: string;
+  board: Board;
+}
+
+export function sendChatMessage(message: string): Promise<ChatResult> {
+  return request<ChatResult>("/api/chat", {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
+}

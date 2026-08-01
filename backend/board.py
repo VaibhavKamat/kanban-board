@@ -214,10 +214,13 @@ def get_recent_messages(username: str, limit: int = 20) -> list[dict]:
     try:
         board_id = _get_board_id_for_user(conn, username)
         rows = conn.execute(
-            "SELECT role, content FROM messages WHERE board_id = ? ORDER BY id DESC LIMIT ?",
+            "SELECT id, role, content FROM messages WHERE board_id = ? ORDER BY id DESC LIMIT ?",
             (board_id, limit),
         ).fetchall()
-        return [{"role": r["role"], "content": r["content"]} for r in reversed(rows)]
+        return [
+            {"id": str(r["id"]), "role": r["role"], "content": r["content"]}
+            for r in reversed(rows)
+        ]
     finally:
         conn.close()
 

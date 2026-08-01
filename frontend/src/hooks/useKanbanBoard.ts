@@ -98,5 +98,6 @@ export function useKanbanBoard() {
     moveCard,
     createCard,
     deleteCard,
+    applyBoard,
   };
 }

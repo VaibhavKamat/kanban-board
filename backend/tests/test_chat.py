@@ -15,6 +15,32 @@ def test_chat_requires_auth(client):
     assert client.post("/api/chat", json={"message": "hi"}).status_code == 401
 
 
+def test_get_messages_requires_auth(client):
+    assert client.get("/api/messages").status_code == 401
+
+
+def test_get_messages_empty_before_any_chat(auth_client):
+    response = auth_client.get("/api/messages")
+    assert response.status_code == 200
+    assert response.json() == {"messages": []}
+
+
+def test_get_messages_returns_persisted_history_in_order(auth_client, monkeypatch):
+    parsed = chat_module.ChatResponse(reply="Sure thing.", board_update=None)
+    monkeypatch.setattr(chat_module, "get_client", lambda: _fake_client(parsed))
+
+    auth_client.post("/api/chat", json={"message": "hello there"})
+
+    response = auth_client.get("/api/messages")
+    assert response.status_code == 200
+    messages = response.json()["messages"]
+    assert [(m["role"], m["content"]) for m in messages] == [
+        ("user", "hello there"),
+        ("assistant", "Sure thing."),
+    ]
+    assert all("id" in m for m in messages)
+
+
 def test_chat_no_board_change(auth_client, monkeypatch):
     parsed = chat_module.ChatResponse(reply="Hi there!", board_update=None)
     monkeypatch.setattr(chat_module, "get_client", lambda: _fake_client(parsed))

@@ -337,25 +337,26 @@ Fixed Kanban columns (confirmed): **Backlog / To Do / In Progress / Review / Don
 ### Design decisions
 
 - No polling or websockets: since Part 9's `/api/chat` response already includes the fresh full board state, the frontend simply replaces its board state with the `board` field after every AI turn.
-- Sidebar: always visible on desktop widths, toggleable on narrow widths; message list + input + send button, styled per the CLAUDE.md palette (e.g. purple secondary for the send button).
+- Sidebar: message list + input + send button, styled per the CLAUDE.md palette (purple secondary for the send button, blue primary for user message bubbles). Toggleable via a header button (open by default) rather than a full responsive mobile-overlay system - simpler, and this is a desktop-primary app.
 - Chat history loads via a new `GET /api/messages` (or equivalent) on app load, so the sidebar isn't empty after a refresh - reusing the history Part 9 already persists.
 - Minimal loading/error states: a loading indicator while awaiting a reply, an inline error on failure - no retry queue.
+- **Real bug found via tests, fixed**: the mount-time history load must *merge* into state (`[...history, ...prev]`), not overwrite it. A naive overwrite (`setMessages(history)`) would silently drop a message the user sent before the history fetch resolved - a genuine race, not just a test artifact, since `send()`'s optimistic update and the mount effect's fetch both write to the same state independently. Covered by a dedicated regression test (`useChat.test.ts`) that resolves history *after* a send.
 
 ### Checklist
 
-- [ ] Add `GET /api/messages` returning persisted chat history for the current user's board
-- [ ] Build the sidebar component (message list + input + send button), styled per the color scheme
-- [ ] Load and render existing chat history on app load
-- [ ] Wire send to `POST /api/chat`, optimistically appending the user's message, then appending the AI reply on response
-- [ ] On receiving a chat response, replace board state with the response's `board` field (no separate `GET /api/board` call)
-- [ ] Add a loading indicator while awaiting the AI response
-- [ ] Add inline error handling for failed chat requests
-- [ ] Add frontend tests: sending a message appends it, a response with a board update visibly updates the board, a response without one leaves the board unchanged, error state renders correctly
-- [ ] Full manual end-to-end check in the running container: log in, use chat to create/move/edit a card, watch the board update live without a manual refresh, refresh the page and confirm both board and chat history persisted
+- [x] Add `GET /api/messages` returning persisted chat history for the current user's board
+- [x] Build the sidebar component (message list + input + send button), styled per the color scheme
+- [x] Load and render existing chat history on app load
+- [x] Wire send to `POST /api/chat`, optimistically appending the user's message, then appending the AI reply on response
+- [x] On receiving a chat response, replace board state with the response's `board` field (no separate `GET /api/board` call)
+- [x] Add a loading indicator while awaiting the AI response
+- [x] Add inline error handling for failed chat requests
+- [x] Add frontend tests: sending a message appends it, a response with a board update visibly updates the board, a response without one leaves the board unchanged, error state renders correctly
+- [x] Full manual end-to-end check in the running container: log in, use chat to create/move/edit a card, watch the board update live without a manual refresh, refresh the page and confirm both board and chat history persisted
 
 ### Tests / success criteria
 
-- Frontend tests pass (mocking `/api/chat` responses)
-- A board-changing chat instruction updates the visible board within the same interaction, no manual refresh
-- A page refresh after a chat session shows both the persisted board and the persisted chat history
-- Sidebar visually matches the CLAUDE.md color palette
+- [x] Frontend tests pass (mocking `/api/chat` responses) - 33/33, including the history-merge race regression test
+- [x] A board-changing chat instruction updates the visible board within the same interaction, no manual refresh - verified via real browser + real API against the Docker container
+- [x] A page refresh after a chat session shows both the persisted board and the persisted chat history - verified via direct DOM inspection after reload
+- [x] Sidebar visually matches the CLAUDE.md color palette

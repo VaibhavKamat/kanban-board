@@ -167,17 +167,17 @@ Fixed Kanban columns (confirmed): **Backlog / To Do / In Progress / Review / Don
 
 ### Checklist
 
-- [ ] Draft the `users`, `boards`, `columns`, `cards`, `messages` schema with fields, types, and foreign keys
-- [ ] Confirm the `columns` seed data (5 keys/names/order values) matches Part 3's mock data exactly
-- [ ] Write `docs/db_schema.json`
-- [ ] Write `docs/database.md` explaining the rationale (multi-user future-proofing, key vs name, order semantics, why messages exists now, why sessions aren't a table)
+- [x] Draft the `users`, `boards`, `columns`, `cards`, `messages` schema with fields, types, and foreign keys
+- [x] Confirm the `columns` seed data (5 keys/names/order values) matches Part 3's mock data exactly
+- [x] Write `docs/db_schema.json`
+- [x] Write `docs/database.md` explaining the rationale (multi-user future-proofing, key vs name, order semantics, why messages exists now, why sessions aren't a table)
 - [ ] Present the schema to the user for explicit sign-off
 
 ### Tests / success criteria
 
-- `docs/db_schema.json` is valid JSON and covers every entity needed by Parts 6, 7, and 9
-- `docs/database.md` is concise and understandable to a reader unfamiliar with the project
-- User has explicitly approved the schema before Part 6 begins
+- [x] `docs/db_schema.json` is valid JSON and covers every entity needed by Parts 6, 7, and 9
+- [x] `docs/database.md` is concise and understandable to a reader unfamiliar with the project
+- [ ] User has explicitly approved the schema before Part 6 begins
 
 ---
 

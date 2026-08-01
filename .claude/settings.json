@@ -7,7 +7,8 @@
       "Bash(curl -s -c /tmp/cookies2.txt -X POST http://localhost:8000/api/login -H \"Content-Type: application/json\" -d '{\"username\":\"user\",\"password\":\"password\"}')",
       "Bash(curl -s -b /tmp/cookies2.txt http://localhost:8000/api/me)",
       "PowerShell(Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force)",
-      "PowerShell(Get-ExecutionPolicy -List)"
+      "PowerShell(Get-ExecutionPolicy -List)",
+      "Bash(python -c \"import json; json.load\\(open\\('docs/db_schema.json'\\)\\); print\\('valid JSON'\\)\")"
     ],
     "deny": []
   }

@@ -1,0 +1,84 @@
+{
+  "database": "kanban.db",
+  "engine": "SQLite",
+  "tables": [
+    {
+      "name": "users",
+      "description": "One row per signed-in user. Only one row exists for the MVP (the hardcoded 'user'), but boards/cards are modeled as belonging to a user so multi-user support does not require a schema change later.",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "primary_key": true, "autoincrement": true },
+        { "name": "username", "type": "TEXT", "nullable": false, "unique": true }
+      ],
+      "note": "No password column. Part 4's login check is a hardcoded in-memory comparison, not a DB lookup - adding a password column now would be unused schema. Add one when real credential storage is actually needed."
+    },
+    {
+      "name": "boards",
+      "description": "One row per user's Kanban board. Only one board per user for the MVP, enforced by application logic (not a schema constraint), matching CLAUDE.md's stated limitation.",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "primary_key": true, "autoincrement": true },
+        { "name": "user_id", "type": "INTEGER", "nullable": false, "foreign_key": "users.id" },
+        { "name": "created_at", "type": "DATETIME", "nullable": false, "default": "CURRENT_TIMESTAMP" }
+      ]
+    },
+    {
+      "name": "columns",
+      "description": "The fixed Kanban columns for a board. Rows are seeded once and never added to or removed from by the application - only 'name' is ever updated (rename). There is deliberately no API to create or delete a column.",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "primary_key": true, "autoincrement": true },
+        { "name": "board_id", "type": "INTEGER", "nullable": false, "foreign_key": "boards.id" },
+        { "name": "key", "type": "TEXT", "nullable": false, "note": "Fixed internal identifier (e.g. 'todo'). Never changes, never exposed as editable." },
+        { "name": "name", "type": "TEXT", "nullable": false, "note": "User-editable display label. This is the only field the rename endpoint (Part 6) may update." },
+        { "name": "order", "type": "INTEGER", "nullable": false, "note": "Fixed display order, 0-indexed." }
+      ],
+      "indexes": [
+        { "columns": ["board_id", "key"], "unique": true }
+      ],
+      "seed_data": {
+        "description": "Seeded once per board at backend startup (Part 6), matching the mock data already used by the frontend (Part 3) exactly.",
+        "rows": [
+          { "key": "backlog", "name": "Backlog", "order": 0 },
+          { "key": "todo", "name": "To Do", "order": 1 },
+          { "key": "in_progress", "name": "In Progress", "order": 2 },
+          { "key": "review", "name": "Review", "order": 3 },
+          { "key": "done", "name": "Done", "order": 4 }
+        ]
+      }
+    },
+    {
+      "name": "cards",
+      "description": "Individual Kanban cards. Freely created, edited, moved (across columns and reordered within a column), and deleted.",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "primary_key": true, "autoincrement": true },
+        { "name": "column_id", "type": "INTEGER", "nullable": false, "foreign_key": "columns.id" },
+        { "name": "title", "type": "TEXT", "nullable": false },
+        { "name": "description", "type": "TEXT", "nullable": false, "default": "" },
+        { "name": "order", "type": "INTEGER", "nullable": false, "note": "Position within column_id, 0-indexed. Resequenced on every move (Part 6)." },
+        { "name": "created_at", "type": "DATETIME", "nullable": false, "default": "CURRENT_TIMESTAMP" },
+        { "name": "updated_at", "type": "DATETIME", "nullable": false, "default": "CURRENT_TIMESTAMP" }
+      ],
+      "indexes": [
+        { "columns": ["column_id"], "unique": false }
+      ]
+    },
+    {
+      "name": "messages",
+      "description": "AI chat history for a board. Added now (Part 5) even though unused until Part 9, so the schema doesn't need a second sign-off round when chat is implemented.",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "primary_key": true, "autoincrement": true },
+        { "name": "board_id", "type": "INTEGER", "nullable": false, "foreign_key": "boards.id" },
+        { "name": "role", "type": "TEXT", "nullable": false, "note": "'user' or 'assistant'." },
+        { "name": "content", "type": "TEXT", "nullable": false },
+        { "name": "created_at", "type": "DATETIME", "nullable": false, "default": "CURRENT_TIMESTAMP" }
+      ],
+      "indexes": [
+        { "columns": ["board_id", "created_at"], "unique": false }
+      ]
+    }
+  ],
+  "not_modeled_as_tables": [
+    {
+      "concept": "Login sessions",
+      "reason": "Part 4 deliberately stores sessions in an in-memory Python dict, not SQLite. Single process, single container; a restart losing sessions is an accepted MVP limitation. See docs/database.md."
+    }
+  ]
+}

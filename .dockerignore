@@ -6,4 +6,6 @@ backend/conftest.py
 backend/requirements-dev.txt
 frontend/node_modules
 frontend/.next
+frontend/out
+backend/static
 .git

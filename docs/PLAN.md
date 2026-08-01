@@ -94,27 +94,27 @@ Fixed Kanban columns (confirmed): **Backlog / To Do / In Progress / Review / Don
 
 ### Checklist
 
-- [ ] Scaffold `frontend/` with `create-next-app` (TypeScript, App Router, Tailwind, `output: 'export'` in `next.config`)
-- [ ] Define `Column` and `Card` TypeScript types per the data model above
-- [ ] Create mock seed data for the 5 fixed columns and a handful of sample cards
-- [ ] Map the CLAUDE.md color palette into the Tailwind theme
-- [ ] Build the board layout: columns in fixed order, inline column rename (no add/remove controls)
-- [ ] Build the card component (title + description preview)
-- [ ] Integrate `@dnd-kit` for drag-and-drop of cards within and across columns, updating local state on drop
-- [ ] Build the card edit modal (edit title/description, save/cancel)
-- [ ] Run `next build`, confirm `frontend/out/` is produced
-- [ ] Rework the root `Dockerfile` into a multi-stage build: Node stage runs `npm ci && npm run build`, then copies `frontend/out/*` into the Python runtime stage's static directory; remove Part 2's placeholder `index.html`
-- [ ] Add frontend unit tests (Vitest + React Testing Library) for column rename, card edit save, and drag-and-drop state updates
-- [ ] Rebuild the Docker image via the start script, confirm the board renders and works (rename, edit, drag) at `http://localhost:8000/` using mock data only
-- [ ] Create `frontend/AGENTS.md` describing: directory structure, component conventions, mock data shape, dev (`npm run dev`) vs build (`npm run build`) commands, styling/color-scheme approach, state management approach, and where Part 7 will wire in the backend
+- [x] Scaffold `frontend/` with `create-next-app` (TypeScript, App Router, Tailwind, `output: 'export'` in `next.config`)
+- [x] Define `Column` and `Card` TypeScript types per the data model above
+- [x] Create mock seed data for the 5 fixed columns and a handful of sample cards
+- [x] Map the CLAUDE.md color palette into the Tailwind theme
+- [x] Build the board layout: columns in fixed order, inline column rename (no add/remove controls)
+- [x] Build the card component (title + description preview)
+- [x] Integrate `@dnd-kit` for drag-and-drop of cards within and across columns, updating local state on drop
+- [x] Build the card edit modal (edit title/description, save/cancel)
+- [x] Run `next build`, confirm `frontend/out/` is produced
+- [x] Rework the root `Dockerfile` into a multi-stage build: Node stage runs `npm ci && npm run build`, then copies `frontend/out/*` into the Python runtime stage's static directory; remove Part 2's placeholder `index.html`
+- [x] Add frontend unit tests (Vitest + React Testing Library) for column rename, card edit save, and drag-and-drop state updates
+- [x] Rebuild the Docker image via the start script, confirm the board renders and works (rename, edit, drag) at `http://localhost:8000/` using mock data only
+- [x] Create `frontend/AGENTS.md` describing: directory structure, component conventions, mock data shape, dev (`npm run dev`) vs build (`npm run build`) commands, styling/color-scheme approach, state management approach, and where Part 7 will wire in the backend
 
 ### Tests / success criteria
 
-- `npm run build` completes without errors and produces `frontend/out/`
-- Frontend unit tests pass: rename updates the displayed column name, edit modal persists changes to local state, drag-and-drop updates a card's `columnId`
-- Manual check: columns render in fixed order with correct names, cards can be dragged between columns, cards can be edited via modal, all using mock data (no network activity for board data)
-- Docker build succeeds end-to-end (Node build stage + Python runtime stage)
-- `frontend/AGENTS.md` exists and accurately describes the codebase as built
+- [x] `npm run build` completes without errors and produces `frontend/out/`
+- [x] Frontend unit tests pass: rename updates the displayed column name, edit modal persists changes to local state, drag-and-drop updates a card's `columnId`
+- [x] Manual check: columns render in fixed order with correct names, cards can be dragged between columns, cards can be edited via modal, all using mock data (no network activity for board data)
+- [x] Docker build succeeds end-to-end (Node build stage + Python runtime stage)
+- [x] `frontend/AGENTS.md` exists and accurately describes the codebase as built
 
 ---
 

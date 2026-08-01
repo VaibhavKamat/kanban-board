@@ -7,6 +7,12 @@ node_modules/
 frontend/.next/
 frontend/out/
 
+# backend/static holds the built frontend output (copied in at Docker build
+# time, or manually for local dev) - not tracked, except a placeholder to
+# keep the directory present for FastAPI's StaticFiles mount
+backend/static/*
+!backend/static/.gitkeep
+
 # Python
 __pycache__/
 *.pyc

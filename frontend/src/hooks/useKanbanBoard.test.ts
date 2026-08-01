@@ -1,67 +1,115 @@
-import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useKanbanBoard } from "@/hooks/useKanbanBoard";
+import * as api from "@/lib/api";
+
+vi.mock("@/lib/api");
+
+const mockedApi = vi.mocked(api);
+
+const initialBoard: api.Board = {
+  columns: [{ id: "col-1", key: "todo", name: "To Do", order: 0 }],
+  cards: [{ id: "card-1", columnId: "col-1", title: "First", description: "d", order: 0 }],
+};
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  mockedApi.getBoard.mockResolvedValue(initialBoard);
+});
 
 describe("useKanbanBoard", () => {
-  it("renames a column", () => {
+  it("loads the board on mount", async () => {
     const { result } = renderHook(() => useKanbanBoard());
+    expect(result.current.loading).toBe(true);
 
-    act(() => {
-      result.current.renameColumn("col-1", "Icebox");
-    });
-
-    expect(result.current.columns.find((c) => c.id === "col-1")?.name).toBe(
-      "Icebox"
-    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.columns).toEqual(initialBoard.columns);
+    expect(result.current.cards).toEqual(initialBoard.cards);
   });
 
-  it("updates a card's title and description", () => {
+  it("sets an error if the initial load fails", async () => {
+    mockedApi.getBoard.mockRejectedValue(new Error("network error"));
     const { result } = renderHook(() => useKanbanBoard());
 
-    act(() => {
-      result.current.updateCard("card-1", {
-        title: "New title",
-        description: "New description",
-      });
-    });
-
-    const card = result.current.cards.find((c) => c.id === "card-1");
-    expect(card?.title).toBe("New title");
-    expect(card?.description).toBe("New description");
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe("Failed to load board");
   });
 
-  it("reorders a card within the same column", () => {
+  it("renames a column optimistically then applies the server response", async () => {
     const { result } = renderHook(() => useKanbanBoard());
+    await waitFor(() => expect(result.current.loading).toBe(false));
 
-    // card-1 and card-2 both start in col-1, card-1 at order 0, card-2 at order 1
-    act(() => {
-      result.current.moveCard("card-1", "col-1", 1);
+    mockedApi.renameColumn.mockResolvedValue({
+      columns: [{ id: "col-1", key: "todo", name: "Icebox", order: 0 }],
+      cards: initialBoard.cards,
     });
 
-    const col1Cards = result.current
-      .cardsByColumn(result.current.cards, "col-1")
-      .map((c) => c.id);
-    expect(col1Cards).toEqual(["card-2", "card-1"]);
+    await act(async () => {
+      await result.current.renameColumn("col-1", "Icebox");
+    });
+
+    expect(mockedApi.renameColumn).toHaveBeenCalledWith("col-1", "Icebox");
+    expect(result.current.columns[0].name).toBe("Icebox");
   });
 
-  it("moves a card to a different column", () => {
+  it("rolls back a column rename if the request fails", async () => {
     const { result } = renderHook(() => useKanbanBoard());
+    await waitFor(() => expect(result.current.loading).toBe(false));
 
-    act(() => {
-      result.current.moveCard("card-1", "col-2", 0);
+    mockedApi.renameColumn.mockRejectedValue(new Error("failed"));
+
+    await act(async () => {
+      await result.current.renameColumn("col-1", "Icebox");
     });
 
-    const movedCard = result.current.cards.find((c) => c.id === "card-1");
-    expect(movedCard?.columnId).toBe("col-2");
-    expect(movedCard?.order).toBe(0);
+    expect(result.current.columns[0].name).toBe("To Do");
+    expect(result.current.error).toBe("Failed to rename column");
+  });
 
-    // card that was previously at order 0 in col-2 should now be order 1
-    const col2Cards = result.current.cardsByColumn(result.current.cards, "col-2");
-    expect(col2Cards.map((c) => c.id)).toEqual(["card-1", "card-3"]);
+  it("rolls back a card move if the request fails", async () => {
+    const { result } = renderHook(() => useKanbanBoard());
+    await waitFor(() => expect(result.current.loading).toBe(false));
 
-    // the source column should have its remaining card resequenced from 0
-    const col1Cards = result.current.cardsByColumn(result.current.cards, "col-1");
-    expect(col1Cards.map((c) => c.order)).toEqual([0]);
+    mockedApi.updateCard.mockRejectedValue(new Error("failed"));
+
+    await act(async () => {
+      await result.current.moveCard("card-1", "col-1", 0);
+    });
+
+    expect(result.current.cards).toEqual(initialBoard.cards);
+    expect(result.current.error).toBe("Failed to move card");
+  });
+
+  it("creates a card and applies the returned board", async () => {
+    const { result } = renderHook(() => useKanbanBoard());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    mockedApi.createCard.mockResolvedValue({
+      columns: initialBoard.columns,
+      cards: [
+        ...initialBoard.cards,
+        { id: "card-2", columnId: "col-1", title: "New card", description: "", order: 1 },
+      ],
+    });
+
+    await act(async () => {
+      await result.current.createCard("col-1", "New card");
+    });
+
+    expect(result.current.cards).toHaveLength(2);
+  });
+
+  it("deletes a card optimistically then confirms with the server response", async () => {
+    const { result } = renderHook(() => useKanbanBoard());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    mockedApi.deleteCard.mockResolvedValue({ columns: initialBoard.columns, cards: [] });
+
+    await act(async () => {
+      await result.current.deleteCard("card-1");
+    });
+
+    expect(result.current.cards).toEqual([]);
   });
 });

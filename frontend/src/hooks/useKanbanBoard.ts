@@ -1,64 +1,102 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { mockCards, mockColumns } from "@/lib/mock-data";
+import * as api from "@/lib/api";
+import {
+  cardsByColumn,
+  moveCardLocally,
+  removeCardLocally,
+  renameColumnLocally,
+  updateCardLocally,
+} from "@/lib/board-utils";
 import type { Card, Column } from "@/types/kanban";
 
-function cardsByColumn(cards: Card[], columnId: string): Card[] {
-  return cards
-    .filter((card) => card.columnId === columnId)
-    .sort((a, b) => a.order - b.order);
-}
-
 export function useKanbanBoard() {
-  const [columns, setColumns] = useState<Column[]>(mockColumns);
-  const [cards, setCards] = useState<Card[]>(mockCards);
+  const [columns, setColumns] = useState<Column[]>([]);
+  const [cards, setCards] = useState<Card[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  function renameColumn(columnId: string, name: string) {
-    setColumns((prev) =>
-      prev.map((column) =>
-        column.id === columnId ? { ...column, name } : column
-      )
-    );
+  useEffect(() => {
+    api
+      .getBoard()
+      .then((board) => {
+        setColumns(board.columns);
+        setCards(board.cards);
+      })
+      .catch(() => setError("Failed to load board"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  function applyBoard(board: api.Board) {
+    setColumns(board.columns);
+    setCards(board.cards);
+    setError(null);
   }
 
-  function updateCard(cardId: string, updates: Pick<Card, "title" | "description">) {
-    setCards((prev) =>
-      prev.map((card) => (card.id === cardId ? { ...card, ...updates } : card))
-    );
+  async function renameColumn(columnId: string, name: string) {
+    const previous = columns;
+    setColumns(renameColumnLocally(columns, columnId, name));
+    try {
+      applyBoard(await api.renameColumn(columnId, name));
+    } catch {
+      setColumns(previous);
+      setError("Failed to rename column");
+    }
   }
 
-  function moveCard(cardId: string, targetColumnId: string, targetIndex: number) {
-    setCards((prev) => {
-      const movingCard = prev.find((card) => card.id === cardId);
-      if (!movingCard) return prev;
+  async function updateCard(cardId: string, updates: Pick<Card, "title" | "description">) {
+    const previous = cards;
+    setCards(updateCardLocally(cards, cardId, updates));
+    try {
+      applyBoard(await api.updateCard(cardId, updates));
+    } catch {
+      setCards(previous);
+      setError("Failed to update card");
+    }
+  }
 
-      const sourceColumnId = movingCard.columnId;
-      const targetList = cardsByColumn(prev, targetColumnId).filter(
-        (card) => card.id !== cardId
+  async function moveCard(cardId: string, targetColumnId: string, targetIndex: number) {
+    const previous = cards;
+    setCards(moveCardLocally(cards, cardId, targetColumnId, targetIndex));
+    try {
+      applyBoard(
+        await api.updateCard(cardId, { columnId: targetColumnId, order: targetIndex })
       );
-      const clampedIndex = Math.max(0, Math.min(targetIndex, targetList.length));
-      targetList.splice(clampedIndex, 0, { ...movingCard, columnId: targetColumnId });
-
-      const updates = new Map<string, { columnId: string; order: number }>();
-      targetList.forEach((card, index) => {
-        updates.set(card.id, { columnId: targetColumnId, order: index });
-      });
-
-      if (sourceColumnId !== targetColumnId) {
-        const sourceList = cardsByColumn(prev, sourceColumnId).filter(
-          (card) => card.id !== cardId
-        );
-        sourceList.forEach((card, index) => {
-          updates.set(card.id, { columnId: sourceColumnId, order: index });
-        });
-      }
-
-      return prev.map((card) => {
-        const update = updates.get(card.id);
-        return update ? { ...card, ...update } : card;
-      });
-    });
+    } catch {
+      setCards(previous);
+      setError("Failed to move card");
+    }
   }
 
-  return { columns, cards, cardsByColumn, renameColumn, updateCard, moveCard };
+  async function createCard(columnId: string, title: string) {
+    try {
+      applyBoard(await api.createCard(columnId, title));
+    } catch {
+      setError("Failed to create card");
+    }
+  }
+
+  async function deleteCard(cardId: string) {
+    const previous = cards;
+    setCards(removeCardLocally(cards, cardId));
+    try {
+      applyBoard(await api.deleteCard(cardId));
+    } catch {
+      setCards(previous);
+      setError("Failed to delete card");
+    }
+  }
+
+  return {
+    columns,
+    cards,
+    cardsByColumn,
+    loading,
+    error,
+    renameColumn,
+    updateCard,
+    moveCard,
+    createCard,
+    deleteCard,
+  };
 }

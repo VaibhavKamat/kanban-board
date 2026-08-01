@@ -5,15 +5,21 @@ import type { Card } from "@/types/kanban";
 interface CardModalProps {
   card: Card;
   onSave: (updates: Pick<Card, "title" | "description">) => void;
+  onDelete: () => void;
   onClose: () => void;
 }
 
-export function CardModal({ card, onSave, onClose }: CardModalProps) {
+export function CardModal({ card, onSave, onDelete, onClose }: CardModalProps) {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description);
 
   function handleSave() {
     onSave({ title: title.trim() || card.title, description });
+    onClose();
+  }
+
+  function handleDelete() {
+    onDelete();
     onClose();
   }
 
@@ -37,19 +43,27 @@ export function CardModal({ card, onSave, onClose }: CardModalProps) {
           className="mb-4 w-full rounded border border-gray-300 px-3 py-2"
         />
 
-        <div className="flex justify-end gap-2">
+        <div className="flex items-center justify-between">
           <button
-            onClick={onClose}
-            className="rounded px-4 py-2 text-gray-text hover:bg-gray-100"
+            onClick={handleDelete}
+            className="rounded px-4 py-2 text-red-600 hover:bg-red-50"
           >
-            Cancel
+            Delete
           </button>
-          <button
-            onClick={handleSave}
-            className="rounded bg-purple-secondary px-4 py-2 text-white hover:opacity-90"
-          >
-            Save
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="rounded px-4 py-2 text-gray-text hover:bg-gray-100"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="rounded bg-purple-secondary px-4 py-2 text-white hover:opacity-90"
+            >
+              Save
+            </button>
+          </div>
         </div>
       </div>
     </div>

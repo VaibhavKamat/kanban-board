@@ -16,6 +16,7 @@ describe("KanbanColumn", () => {
         ]}
         onRename={vi.fn()}
         onCardClick={vi.fn()}
+        onAddCard={vi.fn()}
       />
     );
 
@@ -25,7 +26,13 @@ describe("KanbanColumn", () => {
   it("commits a rename on Enter", () => {
     const onRename = vi.fn();
     render(
-      <KanbanColumn column={column} cards={[]} onRename={onRename} onCardClick={vi.fn()} />
+      <KanbanColumn
+        column={column}
+        cards={[]}
+        onRename={onRename}
+        onCardClick={vi.fn()}
+        onAddCard={vi.fn()}
+      />
     );
 
     fireEvent.click(screen.getByText("Backlog"));
@@ -39,7 +46,13 @@ describe("KanbanColumn", () => {
   it("does not rename to an empty name", () => {
     const onRename = vi.fn();
     render(
-      <KanbanColumn column={column} cards={[]} onRename={onRename} onCardClick={vi.fn()} />
+      <KanbanColumn
+        column={column}
+        cards={[]}
+        onRename={onRename}
+        onCardClick={vi.fn()}
+        onAddCard={vi.fn()}
+      />
     );
 
     fireEvent.click(screen.getByText("Backlog"));

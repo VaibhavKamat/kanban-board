@@ -10,9 +10,16 @@ interface KanbanColumnProps {
   cards: Card[];
   onRename: (name: string) => void;
   onCardClick: (card: Card) => void;
+  onAddCard: () => void;
 }
 
-export function KanbanColumn({ column, cards, onRename, onCardClick }: KanbanColumnProps) {
+export function KanbanColumn({
+  column,
+  cards,
+  onRename,
+  onCardClick,
+  onAddCard,
+}: KanbanColumnProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState(column.name);
 
@@ -64,6 +71,13 @@ export function KanbanColumn({ column, cards, onRename, onCardClick }: KanbanCol
           ))}
         </SortableContext>
       </div>
+
+      <button
+        onClick={onAddCard}
+        className="mt-2 rounded px-2 py-1 text-left text-sm text-gray-text hover:bg-gray-200"
+      >
+        + Add card
+      </button>
     </div>
   );
 }

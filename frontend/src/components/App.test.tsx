@@ -21,6 +21,7 @@ describe("App", () => {
       vi.fn((url: string) => {
         if (url === "/api/me") return jsonResponse({ authenticated: false, username: null });
         if (url === "/api/login") return jsonResponse({ username: "user" });
+        if (url === "/api/board") return jsonResponse({ columns: [], cards: [] });
         throw new Error(`Unexpected fetch: ${url}`);
       })
     );
@@ -42,6 +43,7 @@ describe("App", () => {
       vi.fn((url: string) => {
         if (url === "/api/me") return jsonResponse({ authenticated: true, username: "user" });
         if (url === "/api/logout") return jsonResponse({ ok: true });
+        if (url === "/api/board") return jsonResponse({ columns: [], cards: [] });
         throw new Error(`Unexpected fetch: ${url}`);
       })
     );

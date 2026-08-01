@@ -20,8 +20,18 @@ interface BoardProps {
 }
 
 export function Board({ onLogout }: BoardProps) {
-  const { columns, cards, cardsByColumn, renameColumn, updateCard, moveCard } =
-    useKanbanBoard();
+  const {
+    columns,
+    cards,
+    cardsByColumn,
+    loading,
+    error,
+    renameColumn,
+    updateCard,
+    moveCard,
+    createCard,
+    deleteCard,
+  } = useKanbanBoard();
   const [activeCard, setActiveCard] = useState<Card | null>(null);
 
   const sensors = useSensors(
@@ -69,31 +79,41 @@ export function Board({ onLogout }: BoardProps) {
         </button>
       </div>
 
-      <DndContext
-        id="kanban-board"
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {[...columns]
-            .sort((a, b) => a.order - b.order)
-            .map((column) => (
-              <KanbanColumn
-                key={column.id}
-                column={column}
-                cards={cardsByColumn(cards, column.id)}
-                onRename={(name) => renameColumn(column.id, name)}
-                onCardClick={setActiveCard}
-              />
-            ))}
-        </div>
-      </DndContext>
+      {error && (
+        <p className="mb-4 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+      )}
+
+      {loading ? (
+        <p className="text-gray-text">Loading board...</p>
+      ) : (
+        <DndContext
+          id="kanban-board"
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {[...columns]
+              .sort((a, b) => a.order - b.order)
+              .map((column) => (
+                <KanbanColumn
+                  key={column.id}
+                  column={column}
+                  cards={cardsByColumn(cards, column.id)}
+                  onRename={(name) => renameColumn(column.id, name)}
+                  onCardClick={setActiveCard}
+                  onAddCard={() => createCard(column.id, "New card")}
+                />
+              ))}
+          </div>
+        </DndContext>
+      )}
 
       {activeCard && (
         <CardModal
           card={activeCard}
           onSave={(updates) => updateCard(activeCard.id, updates)}
+          onDelete={() => deleteCard(activeCard.id)}
           onClose={() => setActiveCard(null)}
         />
       )}

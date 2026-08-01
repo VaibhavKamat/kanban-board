@@ -4,6 +4,7 @@ backend/.pytest_cache
 backend/tests
 backend/conftest.py
 backend/requirements-dev.txt
+backend/*.db
 frontend/node_modules
 frontend/.next
 frontend/out

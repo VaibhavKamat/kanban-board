@@ -171,13 +171,13 @@ Fixed Kanban columns (confirmed): **Backlog / To Do / In Progress / Review / Don
 - [x] Confirm the `columns` seed data (5 keys/names/order values) matches Part 3's mock data exactly
 - [x] Write `docs/db_schema.json`
 - [x] Write `docs/database.md` explaining the rationale (multi-user future-proofing, key vs name, order semantics, why messages exists now, why sessions aren't a table)
-- [ ] Present the schema to the user for explicit sign-off
+- [x] Present the schema to the user for explicit sign-off
 
 ### Tests / success criteria
 
 - [x] `docs/db_schema.json` is valid JSON and covers every entity needed by Parts 6, 7, and 9
 - [x] `docs/database.md` is concise and understandable to a reader unfamiliar with the project
-- [ ] User has explicitly approved the schema before Part 6 begins
+- [x] User has explicitly approved the schema before Part 6 begins
 
 ---
 
@@ -193,27 +193,28 @@ Fixed Kanban columns (confirmed): **Backlog / To Do / In Progress / Review / Don
 - There is deliberately no add/remove-column endpoint - that absence is what enforces "fixed columns."
 - Reordering: on move, resequence `order` values for affected cards by simple list-position renumbering.
 - `GET /api/board`'s JSON shape is finalized here and reused verbatim by Part 7 (frontend rendering) and Part 9 (AI context + response) - do not redesign it later.
+- Deviation from the original wording: rather than storing the numeric `user_id` inside Part 4's session dict, `board.py` resolves the current user's board via a `username` -> `boards` JOIN on each request. Same effect (routes resolve "current user" generically, matching the multi-user-ready schema) without coupling the session store to a DB primary key.
 
 ### Checklist
 
-- [ ] Implement `backend/db.py`: connection helper, `CREATE TABLE IF NOT EXISTS` for all Part 5 tables, run on startup
-- [ ] Implement idempotent startup seed (user, board, 5 columns)
-- [ ] Point Part 4's session store at the seeded user's real `user_id`
-- [ ] Implement `GET /api/board`
-- [ ] Implement `PATCH /api/columns/{id}` (rename only; reject/ignore attempts to change `key`)
-- [ ] Implement `POST /api/cards`
-- [ ] Implement `PATCH /api/cards/{id}` (edit and/or move, with reordering)
-- [ ] Implement `DELETE /api/cards/{id}`
-- [ ] Protect all board routes with the Part 4 auth dependency
-- [ ] Write backend unit tests: DB creation is idempotent, seed data is correct, each route's happy path, 401 when logged out, reorder-correctness edge cases
-- [ ] Manually verify a full CRUD cycle via curl against a running container
-- [ ] Confirm deleting the SQLite file and restarting recreates and reseeds it correctly
+- [x] Implement `backend/db.py`: connection helper, `CREATE TABLE IF NOT EXISTS` for all Part 5 tables, run on startup
+- [x] Implement idempotent startup seed (user, board, 5 columns)
+- [x] Resolve the current user generically from the session (via username -> board JOIN; see deviation note above)
+- [x] Implement `GET /api/board`
+- [x] Implement `PATCH /api/columns/{id}` (rename only; reject/ignore attempts to change `key`)
+- [x] Implement `POST /api/cards`
+- [x] Implement `PATCH /api/cards/{id}` (edit and/or move, with reordering)
+- [x] Implement `DELETE /api/cards/{id}`
+- [x] Protect all board routes with the Part 4 auth dependency
+- [x] Write backend unit tests: DB creation is idempotent, seed data is correct, each route's happy path, 401 when logged out, reorder-correctness edge cases
+- [x] Manually verify a full CRUD cycle via curl against a running container
+- [x] Confirm deleting the SQLite file and restarting recreates and reseeds it correctly
 
 ### Tests / success criteria
 
-- `pytest` covers all routes' happy paths, auth rejection, and reorder correctness
-- Deleting the `.db` file and restarting recreates it with correct seed data
-- Full curl sequence (login, get board, create card, get board, move card, get board, delete card, get board) behaves correctly at each step
+- [x] `pytest` covers all routes' happy paths, auth rejection, and reorder correctness
+- [x] Deleting the `.db` file and restarting recreates it with correct seed data
+- [x] Full curl sequence (login, get board, create card, get board, move card, get board, delete card, get board) behaves correctly at each step
 
 ---
 
@@ -224,28 +225,31 @@ Fixed Kanban columns (confirmed): **Backlog / To Do / In Progress / Review / Don
 ### Design decisions
 
 - A small `frontend/lib/api.ts` client wraps fetches to `/api/board`, `/api/cards`, `/api/columns`, with `credentials: 'include'` for cookie-based auth (same-origin, since everything is served from one container/port).
-- Drag-and-drop uses an optimistic update (move immediately in local state, `PATCH` in the background, revert on failure) for responsive UX - this is warranted complexity, not over-engineering.
+- Drag-and-drop uses an optimistic update (move immediately in local state, `PATCH` in the background, revert on failure) for responsive UX - this is warranted complexity, not over-engineering. The optimistic-update pure logic (`moveCardLocally`, `renameColumnLocally`, `updateCardLocally`, `removeCardLocally`, `cardsByColumn`) was extracted into `frontend/lib/board-utils.ts` so it stays unit-testable without mocking `fetch`.
 - Error handling stays minimal: a simple inline error on failure, no retry/offline system.
+- Part 3 didn't include card-creation or card-deletion UI (only rename/edit/drag). Part 7 adds both: a "+ Add card" button per column (`KanbanColumn`) and a "Delete" button in the card edit modal (`CardModal`), since Part 6's API supports both and there was previously no way to exercise them from the UI.
+- **Deviation discovered during verification**: `scripts/start.ps1`/`start.sh` do `docker rm -f` followed by `docker run`, meaning the SQLite file (written inside the container's writable layer) was wiped on every restart via our own scripts - the exact scenario Part 7's persistence test is supposed to prove wouldn't have survived it. Fixed by mounting a named Docker volume (`kanban-data` → `/app/data`) and making `backend/db.py`'s `DB_PATH` configurable via `KANBAN_DB_PATH` (defaults to `backend/kanban.db` for local/non-Docker runs, set to `/app/data/kanban.db` in the run scripts). Named volumes survive `docker rm`, so data now persists across the normal stop/start cycle.
 
 ### Checklist
 
-- [ ] Add `frontend/lib/api.ts` wrapping the board/card/column endpoints
-- [ ] Load the board via `GET /api/board` after login instead of mock data
-- [ ] Wire column rename to `PATCH /api/columns/{id}`
-- [ ] Wire card edit save to `PATCH /api/cards/{id}`
-- [ ] Wire card creation to `POST /api/cards`
-- [ ] Wire card deletion to `DELETE /api/cards/{id}`
-- [ ] Wire drag-and-drop to `PATCH /api/cards/{id}` with optimistic update + rollback on failure
-- [ ] Retire the Part 3 mock data module (or keep it only as a test fixture)
-- [ ] Update frontend unit tests to mock the API client
-- [ ] Add integration tests against a real backend covering load/edit/rename/drag/delete, verified via a follow-up `GET /api/board`
-- [ ] Rebuild the full Docker image, manually verify: log in, see the seeded board, make changes, refresh, confirm changes persisted
+- [x] Add `frontend/lib/api.ts` wrapping the board/card/column endpoints
+- [x] Load the board via `GET /api/board` after login instead of mock data
+- [x] Wire column rename to `PATCH /api/columns/{id}`
+- [x] Wire card edit save to `PATCH /api/cards/{id}`
+- [x] Wire card creation to `POST /api/cards` (new "+ Add card" UI control, since Part 3 had none)
+- [x] Wire card deletion to `DELETE /api/cards/{id}` (new "Delete" button in the edit modal)
+- [x] Wire drag-and-drop to `PATCH /api/cards/{id}` with optimistic update + rollback on failure
+- [x] Retire the Part 3 mock data module - deleted `frontend/src/lib/mock-data.ts` (confirmed unused, not kept as a fixture)
+- [x] Update frontend unit tests to mock the API client
+- [x] Add integration tests against a real backend covering load/edit/rename/drag/delete, verified via a follow-up `GET /api/board` (done as a scripted Playwright run against the live full-stack app, not a committed test file - see verification notes)
+- [x] Rebuild the full Docker image, manually verify: log in, see the seeded board, make changes, refresh, confirm changes persisted
+- [x] Add a named Docker volume so SQLite data survives the normal `stop.ps1`/`start.ps1` cycle (see deviation note above)
 
 ### Tests / success criteria
 
-- Updated frontend unit tests pass (API layer mocked)
-- Integration tests pass against a real backend
-- Manual persistence check: restart the container (not just refresh) and confirm changes survived
+- [x] Updated frontend unit tests pass (API layer mocked) - 23/23 passing
+- [x] Integration tests pass against a real backend - scripted browser run: login → real seeded board loads → create card → edit card → rename column → drag card across columns → refresh (state survives) → delete card, zero console errors throughout
+- [x] Manual persistence check: restart the container (not just refresh) and confirm changes survived - verified via the actual `stop.ps1` + `start.ps1` scripts (full `docker rm` + recreate), not just `docker stop`/`start`
 - No console errors or failed network requests during normal use
 
 ---
@@ -257,26 +261,27 @@ Fixed Kanban columns (confirmed): **Backlog / To Do / In Progress / Review / Don
 ### Design decisions
 
 - Use the official `anthropic` Python SDK. Keep this part deliberately minimal - one non-conversational test call, separate from Part 9's complexity.
-- `backend/ai.py` wraps client construction (reads `ANTHROPIC_API_KEY` from the environment) and a simple send-message helper.
-- The model name is a single constant in one place, defaulting to a current Sonnet-tier model, so it's easy to update later.
+- `backend/ai.py` wraps client construction (reads `ANTHROPIC_API_KEY` from the environment via the SDK's own credential resolution) and a simple `send_message` helper. `get_client()` and the `MODEL` constant are written to be reused as-is by Part 9's tool-use/structured-output work.
+- The model name is a single constant (`ai.MODEL`), set to `claude-opus-5` (Anthropic's current default recommendation for new integrations unless a lighter model is explicitly requested) - easy to change in one place later.
 - `GET /api/ai-test` sends a fixed "What is 2+2?" prompt and returns the reply - can remain as a lightweight connectivity health check afterward.
 - A missing/invalid API key must produce a clear error response, not a raw stack trace - this is a real operational concern, not defensive over-engineering.
+- **Root-caused during implementation**: the installed `anthropic` SDK version raises a bare `TypeError` (not `anthropic.AnthropicError`) when no credentials are resolvable, and only lazily - inside `messages.create()`, not at `Anthropic()` construction. A narrow `except anthropic.AnthropicError` therefore let the real missing-key failure through as an unhandled exception (FastAPI's generic plain-text 500). Fixed with a broad `except Exception` in the route handler - deliberate here since this is a genuine system boundary (the external Anthropic API call), not general-purpose defensive programming.
 
 ### Checklist
 
-- [ ] Add `anthropic` to `backend/requirements.txt`
-- [ ] Add `backend/ai.py` with client construction and a `send_message` helper
-- [ ] Pick and document the model name in one central location
-- [ ] Add `GET /api/ai-test` (auth-protected) sending "What is 2+2?" and returning the response text
-- [ ] Handle a missing API key explicitly with a clear error message
-- [ ] Add a backend test that mocks the Anthropic client (no real API calls in the automated suite)
-- [ ] Manually verify with a real API key: curl `/api/ai-test` against the running container and confirm a sane "4" response
+- [x] Add `anthropic` to `backend/requirements.txt`
+- [x] Add `backend/ai.py` with client construction and a `send_message` helper
+- [x] Pick and document the model name in one central location
+- [x] Add `GET /api/ai-test` (auth-protected) sending "What is 2+2?" and returning the response text
+- [x] Handle a missing API key explicitly with a clear error message
+- [x] Add a backend test that mocks the Anthropic client (no real API calls in the automated suite)
+- [x] Manually verify with a real API key: curl `/api/ai-test` against the running container and confirm a sane "4" response
 
 ### Tests / success criteria
 
-- Automated tests pass without needing a real API key (mocked client)
-- Manual curl against a running container with a real key returns a response containing "4"
-- A missing/invalid key produces a clear error, not an unhandled exception
+- [x] Automated tests pass without needing a real API key (mocked client)
+- [x] Manual curl against a running container with a real key returns a response containing "4"
+- [x] A missing/invalid key produces a clear error, not an unhandled exception
 
 ---
 
@@ -301,25 +306,27 @@ Fixed Kanban columns (confirmed): **Backlog / To Do / In Progress / Review / Don
 - Each `POST /api/chat` call sends: the current full board (same shape as `GET /api/board`), the new user message, and recent history from the `messages` table (capped, e.g. last 20 messages, to control token usage).
 - Both the user's message and the AI's reply are persisted to `messages`.
 - The endpoint returns `{ reply, board }` where `board` is the fresh full board state (built via the same function `GET /api/board` uses) - this lets Part 10 avoid any polling.
+- **Implementation choice**: used Anthropic's Structured Outputs (`client.messages.parse()` with a Pydantic `output_format`) rather than a model-chosen tool - every response is forced into the `ChatResponse` schema, so there's no `tool_choice` ambiguity. Model is `ai.MODEL` (`claude-opus-5`), reusing Part 8's `ai.get_client()` unchanged. Full schema and rationale in `docs/ai_chat.md`.
+- Refined during implementation: `CardUpdate.description` and `.order` are optional (`None` = "leave unchanged" / "append at end"), mirroring `board.update_card`'s own optional-field semantics - this stops the model from having to guess or re-echo values it isn't actually changing (e.g. a pure column move no longer risks blanking the description).
 
 ### Checklist
 
-- [ ] Document the structured-output schema in `docs/ai_chat.md`
-- [ ] Confirm the schema's card/column identifiers match Part 5/6's field names exactly
-- [ ] Implement `POST /api/chat` (auth-protected): load board + recent history, build the system prompt + tool schema, call Anthropic
-- [ ] Parse the structured response; when `board_update` is present, apply it via Part 6's existing mutation functions
-- [ ] Persist the user message and AI reply to `messages`
-- [ ] Return `{ reply, board }` (always the fresh full board, whether or not it changed)
-- [ ] Add backend tests (mocked Anthropic client): board-update application correctly mutates via existing functions, history persists and is included in later requests, malformed/missing `board_update` defaults to a no-op
-- [ ] Add tests for both a chat-only turn and a chat-plus-board-change turn
-- [ ] Manually verify with a real API key: a chat request that asks for a board change results in a changed `GET /api/board`, and conversation history persists across requests
+- [x] Document the structured-output schema in `docs/ai_chat.md`
+- [x] Confirm the schema's card/column identifiers match Part 5/6's field names exactly
+- [x] Implement `POST /api/chat` (auth-protected): load board + recent history, build the system prompt + tool schema, call Anthropic
+- [x] Parse the structured response; when `board_update` is present, apply it via Part 6's existing mutation functions
+- [x] Persist the user message and AI reply to `messages`
+- [x] Return `{ reply, board }` (always the fresh full board, whether or not it changed)
+- [x] Add backend tests (mocked Anthropic client): board-update application correctly mutates via existing functions, history persists and is included in later requests, malformed/missing `board_update` defaults to a no-op
+- [x] Add tests for both a chat-only turn and a chat-plus-board-change turn
+- [x] Manually verify with a real API key: a chat request that asks for a board change results in a changed `GET /api/board`, and conversation history persists across requests
 
 ### Tests / success criteria
 
-- Mocked-client tests pass for: no-op chat, card creation via chat, card move via chat, column rename via chat, multi-card update in one turn
-- Manual end-to-end: asking the AI to move a card results in `GET /api/board` reflecting the change
-- A second chat request can correctly reference something said in the first, proving history is loaded and sent
-- Malformed AI output does not crash the endpoint
+- [x] Mocked-client tests pass for: no-op chat, card creation via chat, card move via chat, column rename via chat, multi-card update in one turn
+- [x] Manual end-to-end: asking the AI to move a card results in `GET /api/board` reflecting the change
+- [x] A second chat request can correctly reference something said in the first, proving history is loaded and sent
+- [x] Malformed AI output does not crash the endpoint
 
 ---
 

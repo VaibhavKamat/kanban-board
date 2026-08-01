@@ -17,7 +17,7 @@ describe("CardModal", () => {
     const onSave = vi.fn();
     const onClose = vi.fn();
 
-    render(<CardModal card={card} onSave={onSave} onClose={onClose} />);
+    render(<CardModal card={card} onSave={onSave} onDelete={vi.fn()} onClose={onClose} />);
 
     fireEvent.change(screen.getByDisplayValue("Original title"), {
       target: { value: "Updated title" },
@@ -38,10 +38,21 @@ describe("CardModal", () => {
     const onSave = vi.fn();
     const onClose = vi.fn();
 
-    render(<CardModal card={card} onSave={onSave} onClose={onClose} />);
+    render(<CardModal card={card} onSave={onSave} onDelete={vi.fn()} onClose={onClose} />);
     fireEvent.click(screen.getByText("Cancel"));
 
     expect(onSave).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("deletes the card and closes", () => {
+    const onDelete = vi.fn();
+    const onClose = vi.fn();
+
+    render(<CardModal card={card} onSave={vi.fn()} onDelete={onDelete} onClose={onClose} />);
+    fireEvent.click(screen.getByText("Delete"));
+
+    expect(onDelete).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
 });

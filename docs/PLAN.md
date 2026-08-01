@@ -55,24 +55,24 @@ Fixed Kanban columns (confirmed): **Backlog / To Do / In Progress / Review / Don
 
 ### Checklist
 
-- [ ] Create `backend/main.py` and `backend/requirements.txt` (fastapi, uvicorn)
-- [ ] Add `GET /api/hello` returning a small JSON payload
-- [ ] Create `backend/static/index.html` that fetches `/api/hello` and displays the result
-- [ ] Mount `backend/static/` at `/` with `StaticFiles(html=True)`, registered after the `/api` routes
-- [ ] Write a root `Dockerfile`: `python:3.12-slim` base, copy `backend/`, install requirements, `CMD` runs uvicorn
-- [ ] Write `scripts/start.sh` and `scripts/stop.sh` (Mac/Linux): build image, run container with a fixed name, port mapping, and `--env-file .env`
-- [ ] Write `scripts/start.ps1` and `scripts/stop.ps1` (Windows) with equivalent behavior
-- [ ] Add a minimal `backend/tests/` with one pytest smoke test using FastAPI's `TestClient` against `/api/hello`
-- [ ] Manually verify: run the start script, load `http://localhost:8000/`, confirm the page shows data from `/api/hello`
-- [ ] Run the stop script and confirm the container stops and is removed
+- [x] Create `backend/main.py` and `backend/requirements.txt` (fastapi, uvicorn)
+- [x] Add `GET /api/hello` returning a small JSON payload
+- [x] Create `backend/static/index.html` that fetches `/api/hello` and displays the result
+- [x] Mount `backend/static/` at `/` with `StaticFiles(html=True)`, registered after the `/api` routes
+- [x] Write a root `Dockerfile`: `python:3.12-slim` base, copy `backend/`, install requirements, `CMD` runs uvicorn
+- [x] Write `scripts/start.sh` and `scripts/stop.sh` (Mac/Linux): build image, run container with a fixed name, port mapping, and `--env-file .env`
+- [x] Write `scripts/start.ps1` and `scripts/stop.ps1` (Windows) with equivalent behavior
+- [x] Add a minimal `backend/tests/` with one pytest smoke test using FastAPI's `TestClient` against `/api/hello`
+- [x] Manually verify: run the start script, load `http://localhost:8000/`, confirm the page shows data from `/api/hello`
+- [x] Run the stop script and confirm the container stops and is removed
 
 ### Tests / success criteria
 
-- `curl http://localhost:8000/` returns 200 HTML
-- `curl http://localhost:8000/api/hello` returns 200 JSON with the expected payload
-- `docker ps` shows the container after start, and shows nothing after stop
-- `pytest` passes for the smoke test
-- A fresh checkout with Docker installed can run the start script with no manual setup steps
+- [x] `curl http://localhost:8000/` returns 200 HTML
+- [x] `curl http://localhost:8000/api/hello` returns 200 JSON with the expected payload
+- [x] `docker ps` shows the container after start, and shows nothing after stop
+- [x] `pytest` passes for the smoke test
+- [x] A fresh checkout with Docker installed can run the start script with no manual setup steps
 
 ---
 

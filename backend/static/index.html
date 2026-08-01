@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Kanban - Backend Scaffolding</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #032147;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    #message {
+      font-size: 1.5rem;
+      color: #ecad0a;
+    }
+  </style>
+</head>
+<body>
+  <div id="message">Loading...</div>
+  <script>
+    fetch("/api/hello")
+      .then((res) => res.json())
+      .then((data) => {
+        document.getElementById("message").textContent = data.message;
+      })
+      .catch(() => {
+        document.getElementById("message").textContent = "API call failed";
+      });
+  </script>
+</body>
+</html>

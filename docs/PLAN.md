@@ -131,24 +131,24 @@ Fixed Kanban columns (confirmed): **Backlog / To Do / In Progress / Review / Don
 
 ### Checklist
 
-- [ ] Add `POST /api/login` (username/password body) - sets an HttpOnly session cookie on success, 401 on failure
-- [ ] Add `POST /api/logout` - clears the session (cookie + server-side store)
-- [ ] Add `GET /api/me` - returns current auth status
-- [ ] Add an auth dependency function in FastAPI for protecting board routes (used starting in Part 6)
-- [ ] Build the frontend login form (username/password fields, submit, error message on failure)
-- [ ] Wire the app root: call `/api/me` on mount, show login form or board accordingly
-- [ ] Add a logout control in the board UI
-- [ ] Add backend tests: successful login sets a cookie, wrong credentials return 401, `/api/me` reflects session state, logout clears the session
-- [ ] Add frontend tests: login form validation/error display, successful login reveals the board, logout returns to the login form
-- [ ] Rebuild and run via the start script; manually verify the full flow in a browser, including that refreshing the page keeps the session
+- [x] Add `POST /api/login` (username/password body) - sets an HttpOnly session cookie on success, 401 on failure
+- [x] Add `POST /api/logout` - clears the session (cookie + server-side store)
+- [x] Add `GET /api/me` - returns current auth status
+- [x] Add an auth dependency function in FastAPI for protecting board routes (used starting in Part 6)
+- [x] Build the frontend login form (username/password fields, submit, error message on failure)
+- [x] Wire the app root: call `/api/me` on mount, show login form or board accordingly
+- [x] Add a logout control in the board UI
+- [x] Add backend tests: successful login sets a cookie, wrong credentials return 401, `/api/me` reflects session state, logout clears the session
+- [x] Add frontend tests: login form validation/error display, successful login reveals the board, logout returns to the login form
+- [x] Rebuild and run via the start script; manually verify the full flow in a browser, including that refreshing the page keeps the session
 
 ### Tests / success criteria
 
-- `curl -c cookies.txt -X POST /api/login` with correct credentials succeeds and sets a cookie; incorrect credentials return 401
-- `curl -b cookies.txt /api/me` reflects authenticated state; without the cookie it reflects unauthenticated
-- Logout followed by `/api/me` shows unauthenticated
-- Page refresh while logged in preserves the session; refresh after logout shows the login form
-- Backend and frontend automated tests pass
+- [x] `curl -c cookies.txt -X POST /api/login` with correct credentials succeeds and sets a cookie; incorrect credentials return 401
+- [x] `curl -b cookies.txt /api/me` reflects authenticated state; without the cookie it reflects unauthenticated
+- [x] Logout followed by `/api/me` shows unauthenticated
+- [x] Page refresh while logged in preserves the session; refresh after logout shows the login form
+- [x] Backend and frontend automated tests pass
 
 ---
 

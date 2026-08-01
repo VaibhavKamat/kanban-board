@@ -15,7 +15,11 @@ import { KanbanColumn } from "@/components/KanbanColumn";
 import { useKanbanBoard } from "@/hooks/useKanbanBoard";
 import type { Card } from "@/types/kanban";
 
-export function Board() {
+interface BoardProps {
+  onLogout: () => void;
+}
+
+export function Board({ onLogout }: BoardProps) {
   const { columns, cards, cardsByColumn, renameColumn, updateCard, moveCard } =
     useKanbanBoard();
   const [activeCard, setActiveCard] = useState<Card | null>(null);
@@ -53,9 +57,17 @@ export function Board() {
 
   return (
     <div className="min-h-screen bg-white p-6">
-      <h1 className="mb-6 inline-block border-b-4 border-accent-yellow pb-1 text-2xl font-bold text-dark-navy">
-        Kanban Board
-      </h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="inline-block border-b-4 border-accent-yellow pb-1 text-2xl font-bold text-dark-navy">
+          Kanban Board
+        </h1>
+        <button
+          onClick={onLogout}
+          className="rounded px-4 py-2 text-gray-text hover:bg-gray-100"
+        >
+          Log out
+        </button>
+      </div>
 
       <DndContext
         id="kanban-board"

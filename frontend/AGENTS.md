@@ -10,11 +10,14 @@ Next.js 16 (App Router, TypeScript, Tailwind CSS v4), configured for static expo
 
 ## Structure
 
-- `src/app/` - App Router shell: `layout.tsx` (fonts, metadata), `page.tsx` (renders `<Board />`), `globals.css` (Tailwind + theme colors).
+- `src/app/` - App Router shell: `layout.tsx` (fonts, metadata), `page.tsx` (renders `<App />`), `globals.css` (Tailwind + theme colors).
 - `src/types/kanban.ts` - `Column` and `Card` types. These mirror the planned database schema field names (`docs/PLAN.md` Part 5) so wiring up the real backend in Part 7 doesn't require a translation layer.
 - `src/lib/mock-data.ts` - hardcoded seed data (5 fixed columns, sample cards). This is what the board renders against until Part 7 replaces it with real API calls.
 - `src/hooks/useKanbanBoard.ts` - all board state and mutation logic (`renameColumn`, `updateCard`, `moveCard`), kept separate from components so it's testable without rendering the DnD tree. `moveCard` resequences `order` within and across columns the same way the backend will (Part 6).
-- `src/components/Board.tsx` - top-level orchestrator: owns the `DndContext`, renders columns, opens the edit modal.
+- `src/hooks/useAuth.ts` - auth status (`loading`/`authenticated`/`unauthenticated`) plus `login`/`logout`, backed by `/api/login`, `/api/logout`, `/api/me` (Part 4). Checks session on mount via `/api/me`.
+- `src/components/App.tsx` - top-level auth gate: renders `LoginForm` or `Board` based on `useAuth`'s status.
+- `src/components/LoginForm.tsx` - username/password form with inline error display.
+- `src/components/Board.tsx` - board orchestrator: owns the `DndContext`, renders columns, opens the edit modal, has the header logout button.
 - `src/components/KanbanColumn.tsx` - one column: fixed name/key, inline rename (click to edit, Enter/blur to commit, empty names are rejected), droppable + sortable card list.
 - `src/components/KanbanCard.tsx` - one card, draggable via `@dnd-kit/sortable`.
 - `src/components/CardModal.tsx` - edit modal for a card's title/description.

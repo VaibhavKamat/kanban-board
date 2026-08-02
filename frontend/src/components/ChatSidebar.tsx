@@ -21,7 +21,7 @@ export function ChatSidebar({ messages, loading, error, onSend }: ChatSidebarPro
   }
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l border-gray-200 bg-white">
+    <aside className="flex w-72 shrink-0 flex-col border-l border-gray-200 bg-white">
       <h2 className="border-b border-gray-200 px-4 py-3 font-semibold text-dark-navy">
         AI Assistant
       </h2>

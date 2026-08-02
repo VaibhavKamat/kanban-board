@@ -72,7 +72,7 @@ export function Board({ onLogout }: BoardProps) {
 
   return (
     <div className="flex h-screen bg-white">
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden p-6">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden p-4">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="inline-block border-b-4 border-accent-yellow pb-1 text-2xl font-bold text-dark-navy">
             Kanban Board
@@ -106,7 +106,7 @@ export function Board({ onLogout }: BoardProps) {
             collisionDetection={closestCorners}
             onDragEnd={handleDragEnd}
           >
-            <div className="flex gap-4 overflow-x-auto pb-4">
+            <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-4">
               {[...columns]
                 .sort((a, b) => a.order - b.order)
                 .map((column) => (

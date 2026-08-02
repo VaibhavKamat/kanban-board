@@ -39,7 +39,7 @@ export function KanbanColumn({
   }
 
   return (
-    <div className="flex w-72 shrink-0 flex-col rounded-lg border-t-4 border-accent-yellow bg-gray-100 p-3">
+    <div className="flex min-w-[150px] flex-1 flex-col rounded-lg border-t-4 border-accent-yellow bg-gray-100 p-3">
       {isEditing ? (
         <input
           autoFocus
@@ -64,7 +64,7 @@ export function KanbanColumn({
         </h2>
       )}
 
-      <div ref={setNodeRef} className="flex min-h-[4rem] flex-col gap-2">
+      <div ref={setNodeRef} className="flex min-h-[4rem] flex-1 flex-col gap-2 overflow-y-auto">
         <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
           {cards.map((card) => (
             <KanbanCard key={card.id} card={card} onClick={() => onCardClick(card)} />

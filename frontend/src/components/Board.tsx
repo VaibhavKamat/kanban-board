@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   closestCorners,
   useSensor,
   useSensors,
+  type DragCancelEvent,
   type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 
 import { BoardSwitcher } from "@/components/BoardSwitcher";
 import { CardModal } from "@/components/CardModal";
 import { ChatSidebar } from "@/components/ChatSidebar";
+import { KanbanCardContent } from "@/components/KanbanCard";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { useBoards } from "@/hooks/useBoards";
 import { useChat } from "@/hooks/useChat";
@@ -43,11 +48,15 @@ export function Board({ username, onLogout }: BoardProps) {
     renameColumn,
     updateCard,
     moveCard,
+    moveCardLocal,
+    resetCards,
     createCard,
     deleteCard,
     applyBoard,
   } = useKanbanBoard(activeBoardId);
   const [activeCard, setActiveCard] = useState<Card | null>(null);
+  const [draggingCard, setDraggingCard] = useState<Card | null>(null);
+  const dragStartCardsRef = useRef<Card[] | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const chat = useChat(activeBoardId, applyBoard);
 
@@ -60,31 +69,73 @@ export function Board({ username, onLogout }: BoardProps) {
     setActiveCard(null);
   }
 
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over) return;
-
-    const overData = over.data.current as
-      | { type: "column" }
+  // Resolves what column a drag is currently over, from either hovering
+  // directly over the (empty) column area or over one of its cards. Always
+  // read the real column id from `data.columnId`, never the raw dnd-kit
+  // registry id - a column's dnd-kit id is prefixed (see KanbanColumn) to
+  // avoid colliding with card ids, which are separate DB primary keys that
+  // can easily share the same numeric value.
+  function overColumnId(over: DragOverEvent["over"]): string | undefined {
+    const overData = over?.data.current as
+      | { type: "column"; columnId: string }
       | { type: "card"; columnId: string }
       | undefined;
+    return overData?.columnId;
+  }
 
-    let targetColumnId: string;
+  function handleDragStart(event: DragStartEvent) {
+    dragStartCardsRef.current = cards;
+    setDraggingCard(cards.find((c) => c.id === event.active.id) ?? null);
+  }
+
+  // Cross-column moves aren't something dnd-kit tracks on its own (unlike
+  // same-column reordering, which SortableContext already previews visually
+  // without any state change from us) - so this is the one case we move the
+  // card between columns live, appending it at the end of the new column for
+  // now. onDragEnd resolves the precise final index within that column.
+  function handleDragOver(event: DragOverEvent) {
+    const activeId = event.active.id as string;
+    const movingCard = cards.find((c) => c.id === activeId);
+    const targetColumnId = overColumnId(event.over);
+    if (!movingCard || !targetColumnId || targetColumnId === movingCard.columnId) return;
+
+    moveCardLocal(activeId, targetColumnId, cardsByColumn(cards, targetColumnId).length);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    const startSnapshot = dragStartCardsRef.current ?? undefined;
+    dragStartCardsRef.current = null;
+    setDraggingCard(null);
+
+    const overData = over?.data.current as
+      | { type: "column"; columnId: string }
+      | { type: "card"; columnId: string }
+      | undefined;
+    const targetColumnId = overColumnId(over);
+
     let targetIndex: number;
 
-    if (overData?.type === "column") {
-      targetColumnId = over.id as string;
-      targetIndex = cardsByColumn(cards, targetColumnId).length;
+    if (!targetColumnId) {
+      // Dropped somewhere invalid - undo onDragOver's live preview.
+      if (startSnapshot) resetCards(startSnapshot);
+      return;
     } else if (overData?.type === "card") {
-      targetColumnId = overData.columnId;
       const list = cardsByColumn(cards, targetColumnId);
-      const index = list.findIndex((card) => card.id === over.id);
+      const index = list.findIndex((card) => card.id === over!.id);
       targetIndex = index === -1 ? list.length : index;
     } else {
-      return;
+      targetIndex = cardsByColumn(cards, targetColumnId).length;
     }
 
-    moveCard(active.id as string, targetColumnId, targetIndex);
+    moveCard(active.id as string, targetColumnId, targetIndex, startSnapshot);
+  }
+
+  function handleDragCancel(_event: DragCancelEvent) {
+    const startSnapshot = dragStartCardsRef.current;
+    dragStartCardsRef.current = null;
+    setDraggingCard(null);
+    if (startSnapshot) resetCards(startSnapshot);
   }
 
   return (
@@ -129,7 +180,10 @@ export function Board({ username, onLogout }: BoardProps) {
             id="kanban-board"
             sensors={sensors}
             collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           >
             <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto pb-4">
               {[...columns]
@@ -145,6 +199,14 @@ export function Board({ username, onLogout }: BoardProps) {
                   />
                 ))}
             </div>
+
+            <DragOverlay>
+              {draggingCard ? (
+                <div className="cursor-grabbing rounded-md border border-gray-200 bg-white p-3 shadow-lg">
+                  <KanbanCardContent card={draggingCard} />
+                </div>
+              ) : null}
+            </DragOverlay>
           </DndContext>
         )}
       </div>

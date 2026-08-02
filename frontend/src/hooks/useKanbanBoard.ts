@@ -57,9 +57,28 @@ export function useKanbanBoard(boardId?: string | null) {
     }
   }
 
-  async function moveCard(cardId: string, targetColumnId: string, targetIndex: number) {
-    const previous = cards;
-    setCards(moveCardLocally(cards, cardId, targetColumnId, targetIndex));
+  // Live, local-only reposition while a card is being dragged - no API call.
+  // Lets the card visually move between columns as the drag crosses them,
+  // instead of only jumping to its final spot on drop.
+  function moveCardLocal(cardId: string, targetColumnId: string, targetIndex: number) {
+    setCards((current) => moveCardLocally(current, cardId, targetColumnId, targetIndex));
+  }
+
+  // Restores `cards` to a given snapshot without touching columns/error -
+  // used to undo moveCardLocal's live preview if a drag is cancelled or
+  // dropped outside any column.
+  function resetCards(snapshot: Card[]) {
+    setCards(snapshot);
+  }
+
+  async function moveCard(
+    cardId: string,
+    targetColumnId: string,
+    targetIndex: number,
+    rollbackTo?: Card[]
+  ) {
+    const previous = rollbackTo ?? cards;
+    setCards((current) => moveCardLocally(current, cardId, targetColumnId, targetIndex));
     try {
       applyBoard(
         await api.updateCard(cardId, { columnId: targetColumnId, order: targetIndex })
@@ -98,6 +117,8 @@ export function useKanbanBoard(boardId?: string | null) {
     renameColumn,
     updateCard,
     moveCard,
+    moveCardLocal,
+    resetCards,
     createCard,
     deleteCard,
     applyBoard,

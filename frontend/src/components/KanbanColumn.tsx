@@ -23,9 +23,13 @@ export function KanbanColumn({
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState(column.name);
 
+  // Prefixed so this never collides with a card's dnd-kit id - both are raw
+  // DB primary keys from separate sequences, so a card and a column can
+  // easily share the same numeric id (e.g. card "1" and column "1"), which
+  // silently confuses dnd-kit's single id-keyed droppable registry.
   const { setNodeRef } = useDroppable({
-    id: column.id,
-    data: { type: "column" },
+    id: `column-${column.id}`,
+    data: { type: "column", columnId: column.id },
   });
 
   function commitRename() {

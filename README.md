@@ -4,7 +4,7 @@ A single-user project management app with a drag-and-drop Kanban board and an AI
 
 ## Features
 
-- Sign in and view a Kanban board with 5 fixed, renamable columns (Backlog, To Do, In Progress, Review, Done)
+- Sign in, or create an account (username, email, password), then view a Kanban board with 5 fixed, renamable columns (Backlog, To Do, In Progress, Review, Done)
 - Create, edit, delete, and drag-and-drop cards between columns
 - AI chat sidebar that can create/edit/move cards through natural language requests
 - All data persists in SQLite across restarts
@@ -49,10 +49,12 @@ From the project root:
 
 This builds the Docker image and runs the container, with data persisted in a `kanban-data` Docker volume across restarts. The app is available at [http://localhost:8000](http://localhost:8000).
 
-Sign in with:
+Sign in with the seeded demo account:
 
 - Username: `user`
 - Password: `password`
+
+Or create your own account from the sign-in page ("Don't have an account? Sign up") with a username, email, and password (minimum 8 characters). Signing up only creates the account - you're returned to the sign-in page to log in with your new credentials. Each account gets its own private board.
 
 To stop the app:
 

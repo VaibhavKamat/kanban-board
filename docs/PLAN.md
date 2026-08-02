@@ -360,3 +360,41 @@ Fixed Kanban columns (confirmed): **Backlog / To Do / In Progress / Review / Don
 - [x] A board-changing chat instruction updates the visible board within the same interaction, no manual refresh - verified via real browser + real API against the Docker container
 - [x] A page refresh after a chat session shows both the persisted board and the persisted chat history - verified via direct DOM inspection after reload
 - [x] Sidebar visually matches the CLAUDE.md color palette
+
+---
+
+## Part 11: User sign up
+
+**Goal:** Let people create their own account (email, username, password) instead of only using the shared demo credentials, while keeping the demo login working.
+
+### Design decisions
+
+- Password hashing via the `bcrypt` package directly (not `passlib`, which is unmaintained and has had compatibility breaks with newer `bcrypt` releases).
+- `users` gets two new columns, `email` and `password_hash`. Since `CREATE TABLE IF NOT EXISTS` is a no-op against an already-existing local `kanban.db`, `init_db()` runs a small idempotent migration (`PRAGMA table_info(users)` -> `ALTER TABLE ADD COLUMN` for whichever is missing) before seeding, so existing local databases upgrade in place without losing board data. Email uniqueness is enforced via a separate `CREATE UNIQUE INDEX IF NOT EXISTS`, not an inline column constraint, since SQLite's `ALTER TABLE ADD COLUMN` can't add a `UNIQUE` column - the index applies uniformly whether the table was just created or just migrated.
+- The seeded demo user (`user`/`password`) gets backfilled with a `password_hash` and a placeholder email if either is missing, so `auth.py` can verify every login the same way (DB lookup + `bcrypt.checkpw`) instead of a separate hardcoded-string special case.
+- No new route/page: the app is a static export with no client-side routing, so `LoginForm` gets a `signin`/`signup` mode toggle instead, matching how the rest of the app is already a single-page state machine.
+- Sign up does **not** auto-login: `POST /api/signup` only creates the account (no session cookie), and `LoginForm` switches back to sign-in mode with a "Account created. Please sign in." confirmation, so the new user explicitly logs in with their credentials afterward - changed from an initial auto-login design after user feedback that signing up should behave like a normal signup flow, not silently drop them straight onto the board.
+- Validation: `email` via Pydantic's `EmailStr`, `password` via `Field(min_length=8)`, both enforced at the model level so they 422 the same way other bad input already does. Username/email uniqueness enforced by the DB and translated to a 409 on conflict.
+- **Real bug found via tests, fixed**: `test_auth.py` had its own `client` fixture that never triggered FastAPI's lifespan (`init_db()` never ran), which was silently fine while `verify_credentials` was a hardcoded string comparison that never touched the database. Once verification became DB-backed, every test in that file started failing with `no such table: users`. Fixed by removing the redundant local fixture so the file falls back to `conftest.py`'s isolated, lifespan-triggering `client` fixture (the same one every other test file already uses).
+
+### Checklist
+
+- [x] Add `email`, `password_hash` columns to the `users` schema plus an idempotent migration for existing databases
+- [x] Add `db.create_user()` (hash password, insert user, create board + seed columns) and `db.get_user_by_username()`
+- [x] Backfill the seeded demo user's `password_hash`/`email` on `init_db()`
+- [x] Replace `auth.verify_credentials`'s hardcoded check with a DB lookup + `bcrypt.checkpw`
+- [x] Add `POST /api/signup` (duplicate check -> 409, validation -> 422, success -> creates the account only, no session)
+- [x] Add `bcrypt` and `pydantic[email]` to `backend/requirements.txt`
+- [x] Add a `signin`/`signup` mode toggle to `LoginForm`, with an email field shown only in sign up mode
+- [x] Wire `useAuth.signup()` and `App.tsx` through to the new toggle
+- [x] Add backend tests: successful signup, isolated per-user boards, duplicate username/email -> 409, weak password/bad email -> 422, demo login still works
+- [x] Add a migration test that upgrades a simulated old-shape `users` table without losing data
+- [x] Add frontend tests: mode toggle shows the email field, signup submits all three fields, signup error renders, signup returns to sign-in with a confirmation, full signup-then-login flow
+- [x] Manually verify in a running instance: sign up a new user, confirm it returns to the sign-in form (not auto-logged in), log in with the new account and land on an empty board, confirm the demo login still works, confirm two signed-up users see only their own boards, confirm an old pre-migration `kanban.db` upgrades cleanly on startup
+
+### Tests / success criteria
+
+- [x] Backend test suite passes (53/53), including new `test_signup.py` and the `test_db.py` migration/`create_user` tests
+- [x] Frontend test suite passes (38/38), including the new `LoginForm`/`App` signup tests
+- [x] `npm run build` compiles with no TypeScript errors
+- [x] Manual verification of the signup flow and the pre-existing-database migration path in a real running instance - signup returns to sign-in (not auto-login), isolated per-user boards, duplicate-username error, demo login, and a simulated pre-migration `kanban.db` all verified via a real browser and direct API calls, zero console/page errors

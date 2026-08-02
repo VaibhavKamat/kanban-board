@@ -1,16 +1,20 @@
 import secrets
 
+import bcrypt
 from fastapi import Cookie, Depends, HTTPException, status
 
+from db import get_user_by_username
+
 SESSION_COOKIE_NAME = "session_id"
-HARDCODED_USERNAME = "user"
-HARDCODED_PASSWORD = "password"
 
 _sessions: dict[str, str] = {}
 
 
 def verify_credentials(username: str, password: str) -> bool:
-    return username == HARDCODED_USERNAME and password == HARDCODED_PASSWORD
+    user = get_user_by_username(username)
+    if user is None or user["password_hash"] is None:
+        return False
+    return bcrypt.checkpw(password.encode(), user["password_hash"].encode())
 
 
 def create_session(username: str) -> str:

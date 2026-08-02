@@ -1,14 +1,3 @@
-import pytest
-from fastapi.testclient import TestClient
-
-from main import app
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-
 def test_login_success_sets_cookie(client):
     response = client.post("/api/login", json={"username": "user", "password": "password"})
     assert response.status_code == 200

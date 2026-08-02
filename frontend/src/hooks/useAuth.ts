@@ -28,10 +28,27 @@ export function useAuth() {
     return null;
   }
 
+  async function signup(username: string, email: string, password: string): Promise<string | null> {
+    const response = await fetch("/api/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ username, email, password }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 409) return "Username or email already taken";
+      if (response.status === 422) return "Please check your username, email, and password (min 8 characters)";
+      return "Sign up failed";
+    }
+
+    return null;
+  }
+
   async function logout() {
     await fetch("/api/logout", { method: "POST", credentials: "include" });
     setStatus("unauthenticated");
   }
 
-  return { status, login, logout };
+  return { status, login, signup, logout };
 }

@@ -3,7 +3,6 @@
     "allow": [
       "Bash(npx tsc *)",
       "Bash(powershell -Command \"Stop-Process -Id 11216,7092 -Force\")",
-      "Bash(rm -rf \"/d/Interview Preparation/LLM Courses/Vibe Coder to Agentic Engineer/LLM Course Project Repos/kanban/backend/static\"/*)",
       "Bash(curl -s -c /tmp/cookies2.txt -X POST http://localhost:8000/api/login -H \"Content-Type: application/json\" -d '{\"username\":\"user\",\"password\":\"password\"}')",
       "Bash(curl -s -b /tmp/cookies2.txt http://localhost:8000/api/me)",
       "PowerShell(Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force)",

@@ -1,9 +1,10 @@
+import sqlite3
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Cookie, Depends, FastAPI, HTTPException, Response, status
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 import board
 from ai import send_message
@@ -16,7 +17,7 @@ from auth import (
     require_auth,
     verify_credentials,
 )
-from db import init_db
+from db import create_user, init_db
 
 
 @asynccontextmanager
@@ -33,6 +34,12 @@ STATIC_DIR = Path(__file__).parent / "static"
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+class SignupRequest(BaseModel):
+    username: str
+    email: EmailStr
+    password: str = Field(min_length=8)
 
 
 class ColumnRenameRequest(BaseModel):
@@ -76,6 +83,16 @@ def login(credentials: LoginRequest, response: Response):
     session_id = create_session(credentials.username)
     response.set_cookie(key=SESSION_COOKIE_NAME, value=session_id, httponly=True, samesite="lax")
     return {"username": credentials.username}
+
+
+@app.post("/api/signup")
+def signup(body: SignupRequest):
+    try:
+        create_user(body.username, body.email, body.password)
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=409, detail="Username or email already taken")
+
+    return {"username": body.username}
 
 
 @app.post("/api/logout")

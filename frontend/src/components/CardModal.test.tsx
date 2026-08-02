@@ -9,6 +9,7 @@ const card: Card = {
   columnId: "col-1",
   title: "Original title",
   description: "Original description",
+  dueDate: null,
   order: 0,
 };
 
@@ -30,8 +31,46 @@ describe("CardModal", () => {
     expect(onSave).toHaveBeenCalledWith({
       title: "Updated title",
       description: "Updated description",
+      dueDate: "",
     });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("saves a due date picked in the date field", () => {
+    const onSave = vi.fn();
+    render(<CardModal card={card} onSave={onSave} onDelete={vi.fn()} onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("Due date"), {
+      target: { value: "2026-05-01" },
+    });
+    fireEvent.click(screen.getByText("Save"));
+
+    expect(onSave).toHaveBeenCalledWith({
+      title: "Original title",
+      description: "Original description",
+      dueDate: "2026-05-01",
+    });
+  });
+
+  it("pre-fills the due date field from the card, and clearing it saves an empty due date", () => {
+    const onSave = vi.fn();
+    render(
+      <CardModal
+        card={{ ...card, dueDate: "2026-05-01" }}
+        onSave={onSave}
+        onDelete={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByLabelText("Due date")).toHaveValue("2026-05-01");
+
+    fireEvent.change(screen.getByLabelText("Due date"), { target: { value: "" } });
+    fireEvent.click(screen.getByText("Save"));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ dueDate: "" })
+    );
   });
 
   it("closes without saving on cancel", () => {

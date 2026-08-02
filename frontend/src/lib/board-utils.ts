@@ -19,7 +19,7 @@ export function renameColumnLocally(
 export function updateCardLocally(
   cards: Card[],
   cardId: string,
-  updates: Pick<Card, "title" | "description">
+  updates: Partial<Pick<Card, "title" | "description" | "dueDate">>
 ): Card[] {
   return cards.map((card) => (card.id === cardId ? { ...card, ...updates } : card));
 }

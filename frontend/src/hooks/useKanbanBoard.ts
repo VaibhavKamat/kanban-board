@@ -46,7 +46,10 @@ export function useKanbanBoard(boardId?: string | null) {
     }
   }
 
-  async function updateCard(cardId: string, updates: Pick<Card, "title" | "description">) {
+  async function updateCard(
+    cardId: string,
+    updates: Partial<{ title: string; description: string; dueDate: string }>
+  ) {
     const previous = cards;
     setCards(updateCardLocally(cards, cardId, updates));
     try {

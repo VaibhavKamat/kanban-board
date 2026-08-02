@@ -114,14 +114,14 @@ describe("App", () => {
           return jsonResponse({
             columns: [{ id: "col", key: "backlog", name: "Backlog", order: 0 }],
             cards: [
-              { id: "c2", columnId: "col", title: "Project card", description: "", order: 0 },
+              { id: "c2", columnId: "col", title: "Project card", description: "", dueDate: null, order: 0 },
             ],
           });
         if (url.startsWith("/api/board"))
           return jsonResponse({
             columns: [{ id: "col", key: "backlog", name: "Backlog", order: 0 }],
             cards: [
-              { id: "c1", columnId: "col", title: "Personal card", description: "", order: 0 },
+              { id: "c1", columnId: "col", title: "Personal card", description: "", dueDate: null, order: 0 },
             ],
           });
         if (url.startsWith("/api/messages")) return jsonResponse({ messages: [] });

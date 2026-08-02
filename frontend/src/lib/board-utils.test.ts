@@ -15,9 +15,9 @@ const columns: Column[] = [
 ];
 
 const cards: Card[] = [
-  { id: "card-1", columnId: "col-1", title: "First", description: "", order: 0 },
-  { id: "card-2", columnId: "col-1", title: "Second", description: "", order: 1 },
-  { id: "card-3", columnId: "col-2", title: "Third", description: "", order: 0 },
+  { id: "card-1", columnId: "col-1", title: "First", description: "", dueDate: null, order: 0 },
+  { id: "card-2", columnId: "col-1", title: "Second", description: "", dueDate: null, order: 1 },
+  { id: "card-3", columnId: "col-2", title: "Third", description: "", dueDate: null, order: 0 },
 ];
 
 describe("cardsByColumn", () => {
@@ -43,6 +43,13 @@ describe("updateCardLocally", () => {
     const card = result.find((c) => c.id === "card-1");
     expect(card?.title).toBe("New title");
     expect(card?.description).toBe("New description");
+  });
+
+  it("updates only the due date, leaving title and description untouched", () => {
+    const result = updateCardLocally(cards, "card-1", { dueDate: "2026-05-01" });
+    const card = result.find((c) => c.id === "card-1");
+    expect(card?.dueDate).toBe("2026-05-01");
+    expect(card?.title).toBe("First");
   });
 });
 

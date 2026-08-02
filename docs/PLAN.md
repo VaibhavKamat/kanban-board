@@ -437,3 +437,39 @@ Fixed Kanban columns (confirmed): **Backlog / To Do / In Progress / Review / Don
 - [x] Frontend test suite passes (47/47), including the new `BoardSwitcher.test.tsx` and hook/integration additions
 - [x] `npm run build` compiles with no TypeScript errors
 - [x] Manual verification of the full shared-project flow (creation, cross-user visibility, access control) via a real browser against a fresh database, plus a separate `boards`-table migration check against a simulated pre-Part-12 database with real card data - both clean, zero console/page errors
+
+---
+
+## Part 13: Card due dates
+
+**Goal:** Let a due date be set on any card, editable both inline on the card face and in the existing edit modal, using the browser's native calendar picker.
+
+### Design decisions
+
+- `cards` gets one new nullable column, `due_date TEXT` (ISO `YYYY-MM-DD`), migrated the same way as every prior schema addition in `db.py` - existing cards get `NULL` (no due date), no data loss.
+- No new UI library: a plain `<input type="date">` already opens the browser's native calendar picker on click and round-trips `YYYY-MM-DD` strings directly, so no date-picker dependency or custom calendar component was needed.
+- Inline field lives directly on `KanbanCard`, requested at "the bottom of each card" - not just in the modal. Since the whole card is a clickable + draggable surface (`onClick` opens the edit modal, dnd-kit listeners are spread on the same element), the date input stops click/pointerdown propagation so picking a date neither opens the modal nor is mistaken for a drag start.
+- Update semantics distinguish three states through the same optional field: omitted (`None`) leaves the due date untouched, an empty string clears it (stored as SQL `NULL`, not `""`, so a cleared date matches a never-set date), and any other value sets it. This mirrors the existing `title`/`description` optional-update pattern in `board.update_card`.
+- The edit modal also gained a due date field for a consistent full-edit experience, since it already edits title/description together - not explicitly requested, but a natural, low-cost complement to the inline field.
+- **Revised after initial ship**: `due_date` was first left out of the AI chat's `board_update` schema ([[part 9]]) as "out of scope" - but that meant the AI had no field to express a due-date change in at all, which surfaced immediately as "why can't the AI set the due date?" Added `CardUpdate.due_date` (same optional/empty-string/set semantics as the REST API) plus a `Today's date` line in the system prompt, since without a reference date the model can't resolve relative requests like "due next Friday." Verified with a real Anthropic API call, not just the mocked-client tests: the model correctly resolved "next Friday" against the injected date and both set and cleared a due date via chat.
+
+### Checklist
+
+- [x] Add `due_date` to the `cards` schema plus an idempotent migration (`_migrate_cards_table`) for existing databases
+- [x] Thread `due_date` through `board.create_card`/`update_card`/`_row_to_card` (empty string clears to `NULL`, omitted leaves unchanged)
+- [x] Add `due_date` to `CardCreateRequest`/`CardUpdateRequest` and wire the routes
+- [x] Add `dueDate` to the frontend `Card` type, `api.ts`, `board-utils.ts`, and `useKanbanBoard.updateCard`
+- [x] Add the inline `<input type="date">` to `KanbanCard.tsx` (stops click/pointerdown propagation) wired through `KanbanColumn`/`Board.tsx` to `updateCard`
+- [x] Add a due date field to `CardModal.tsx`, pre-filled from the card and saved alongside title/description
+- [x] Add backend tests: create/update with a due date, clearing via empty string, omitting leaves it unchanged, migration test with real pre-existing card data
+- [x] Add frontend tests: new `KanbanCard.test.tsx` (renders/pre-fills the field, calls back without opening the card), `CardModal.test.tsx` due date save/clear, `board-utils.test.ts`/`useKanbanBoard.test.ts` due-date-only update
+- [x] Manually verify in a running instance: set a due date inline without the modal opening, reload and confirm it persisted, open the modal and confirm it shows/edits the same value, clear it inline; separately verify the migration against a simulated pre-Part-13 database with a real pre-existing card
+- [x] Add `due_date` to the AI chat's `CardUpdate` schema and a `Today's date` line to the system prompt; add mocked-client tests (create with a due date, set on an existing card, clear via empty string, omitted leaves it unchanged) and manually verify with a real Anthropic API call that natural-language relative dates ("next Friday") resolve correctly and both set and clear round-trip through chat
+
+### Tests / success criteria
+
+- [x] Backend test suite passes (76/76), including the due-date, migration, and AI-chat due-date tests
+- [x] Frontend test suite passes (55/55), including new `KanbanCard.test.tsx` and the due-date additions across existing suites
+- [x] `npm run build` compiles with no TypeScript errors
+- [x] Manual verification via a real browser: inline field doesn't open the modal, due date persists across reload, modal and card face stay in sync, clearing works, and the migration path preserves a real pre-existing card while adding `due_date = NULL`
+- [x] Manual verification with a real Anthropic API call: "set the due date to next Friday" and "remove the due date" both correctly read/wrote the card's `due_date` through chat

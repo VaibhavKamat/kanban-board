@@ -10,6 +10,7 @@ interface KanbanColumnProps {
   cards: Card[];
   onRename: (name: string) => void;
   onCardClick: (card: Card) => void;
+  onCardDueDateChange: (cardId: string, dueDate: string) => void;
   onAddCard: () => void;
 }
 
@@ -18,6 +19,7 @@ export function KanbanColumn({
   cards,
   onRename,
   onCardClick,
+  onCardDueDateChange,
   onAddCard,
 }: KanbanColumnProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -71,7 +73,12 @@ export function KanbanColumn({
       <div ref={setNodeRef} className="flex min-h-[4rem] flex-1 flex-col gap-2 overflow-y-auto">
         <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
           {cards.map((card) => (
-            <KanbanCard key={card.id} card={card} onClick={() => onCardClick(card)} />
+            <KanbanCard
+              key={card.id}
+              card={card}
+              onClick={() => onCardClick(card)}
+              onDueDateChange={(dueDate) => onCardDueDateChange(card.id, dueDate)}
+            />
           ))}
         </SortableContext>
       </div>

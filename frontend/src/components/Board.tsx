@@ -195,6 +195,7 @@ export function Board({ username, onLogout }: BoardProps) {
                     cards={cardsByColumn(cards, column.id)}
                     onRename={(name) => renameColumn(column.id, name)}
                     onCardClick={setActiveCard}
+                    onCardDueDateChange={(cardId, dueDate) => updateCard(cardId, { dueDate })}
                     onAddCard={() => createCard(column.id, "New card")}
                   />
                 ))}

@@ -4,7 +4,7 @@ import type { Card } from "@/types/kanban";
 
 interface CardModalProps {
   card: Card;
-  onSave: (updates: Pick<Card, "title" | "description">) => void;
+  onSave: (updates: { title: string; description: string; dueDate: string }) => void;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -12,9 +12,10 @@ interface CardModalProps {
 export function CardModal({ card, onSave, onDelete, onClose }: CardModalProps) {
   const [title, setTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description);
+  const [dueDate, setDueDate] = useState(card.dueDate ?? "");
 
   function handleSave() {
-    onSave({ title: title.trim() || card.title, description });
+    onSave({ title: title.trim() || card.title, description, dueDate });
     onClose();
   }
 
@@ -40,6 +41,15 @@ export function CardModal({ card, onSave, onDelete, onClose }: CardModalProps) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={4}
+          className="mb-4 w-full rounded border border-gray-300 px-3 py-2"
+        />
+
+        <label className="mb-1 block text-sm text-gray-text">Due date</label>
+        <input
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+          aria-label="Due date"
           className="mb-4 w-full rounded border border-gray-300 px-3 py-2"
         />
 

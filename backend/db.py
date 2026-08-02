@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS cards (
     column_id INTEGER NOT NULL REFERENCES columns(id),
     title TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
+    due_date TEXT,
     "order" INTEGER NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -103,6 +104,15 @@ def _migrate_boards_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_cards_table(conn: sqlite3.Connection) -> None:
+    # Covers upgrading a cards table created before due_date existed -
+    # existing rows get NULL (no due date), which is the correct default.
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(cards)").fetchall()}
+    if "due_date" not in columns:
+        conn.execute("ALTER TABLE cards ADD COLUMN due_date TEXT")
+    conn.commit()
+
+
 def init_db() -> None:
     conn = get_connection()
     try:
@@ -110,6 +120,7 @@ def init_db() -> None:
         conn.commit()
         _migrate_users_table(conn)
         _migrate_boards_table(conn)
+        _migrate_cards_table(conn)
         _seed(conn)
     finally:
         conn.close()

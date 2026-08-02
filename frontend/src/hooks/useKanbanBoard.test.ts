@@ -10,7 +10,7 @@ const mockedApi = vi.mocked(api);
 
 const initialBoard: api.Board = {
   columns: [{ id: "col-1", key: "todo", name: "To Do", order: 0 }],
-  cards: [{ id: "card-1", columnId: "col-1", title: "First", description: "d", order: 0 }],
+  cards: [{ id: "card-1", columnId: "col-1", title: "First", description: "d", dueDate: null, order: 0 }],
 };
 
 beforeEach(() => {
@@ -89,7 +89,14 @@ describe("useKanbanBoard", () => {
       columns: initialBoard.columns,
       cards: [
         ...initialBoard.cards,
-        { id: "card-2", columnId: "col-1", title: "New card", description: "", order: 1 },
+        {
+          id: "card-2",
+          columnId: "col-1",
+          title: "New card",
+          description: "",
+          dueDate: null,
+          order: 1,
+        },
       ],
     });
 
@@ -98,6 +105,23 @@ describe("useKanbanBoard", () => {
     });
 
     expect(result.current.cards).toHaveLength(2);
+  });
+
+  it("updates a card's due date optimistically then applies the server response", async () => {
+    const { result } = renderHook(() => useKanbanBoard());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    mockedApi.updateCard.mockResolvedValue({
+      columns: initialBoard.columns,
+      cards: [{ ...initialBoard.cards[0], dueDate: "2026-05-01" }],
+    });
+
+    await act(async () => {
+      await result.current.updateCard("card-1", { dueDate: "2026-05-01" });
+    });
+
+    expect(mockedApi.updateCard).toHaveBeenCalledWith("card-1", { dueDate: "2026-05-01" });
+    expect(result.current.cards[0].dueDate).toBe("2026-05-01");
   });
 
   it("deletes a card optimistically then confirms with the server response", async () => {

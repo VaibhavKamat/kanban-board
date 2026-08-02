@@ -56,6 +56,7 @@ export function createCard(
 export interface CardUpdate {
   title?: string;
   description?: string;
+  dueDate?: string;
   columnId?: string;
   order?: number;
 }
@@ -66,6 +67,7 @@ export function updateCard(cardId: string, updates: CardUpdate): Promise<Board> 
     body: JSON.stringify({
       title: updates.title,
       description: updates.description,
+      due_date: updates.dueDate,
       column_id: updates.columnId,
       order: updates.order,
     }),

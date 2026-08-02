@@ -51,6 +51,72 @@ def test_create_card_invalid_column_404(auth_client):
     assert response.status_code == 404
 
 
+def test_create_card_without_due_date_defaults_to_null(auth_client):
+    board = auth_client.get("/api/board").json()
+    todo_id = next(c["id"] for c in board["columns"] if c["key"] == "todo")
+
+    response = auth_client.post("/api/cards", json={"column_id": todo_id, "title": "No due date"})
+    assert response.status_code == 200
+    assert response.json()["cards"][0]["dueDate"] is None
+
+
+def test_create_card_with_due_date(auth_client):
+    board = auth_client.get("/api/board").json()
+    todo_id = next(c["id"] for c in board["columns"] if c["key"] == "todo")
+
+    response = auth_client.post(
+        "/api/cards",
+        json={"column_id": todo_id, "title": "Dated task", "due_date": "2026-03-15"},
+    )
+    assert response.status_code == 200
+    assert response.json()["cards"][0]["dueDate"] == "2026-03-15"
+
+
+def test_update_card_sets_due_date(auth_client):
+    board = auth_client.get("/api/board").json()
+    todo_id = next(c["id"] for c in board["columns"] if c["key"] == "todo")
+    created = auth_client.post(
+        "/api/cards", json={"column_id": todo_id, "title": "Task"}
+    ).json()
+    card_id = created["cards"][0]["id"]
+
+    response = auth_client.patch(f"/api/cards/{card_id}", json={"due_date": "2026-04-01"})
+    assert response.status_code == 200
+    card = next(c for c in response.json()["cards"] if c["id"] == card_id)
+    assert card["dueDate"] == "2026-04-01"
+
+
+def test_update_card_clears_due_date_with_empty_string(auth_client):
+    board = auth_client.get("/api/board").json()
+    todo_id = next(c["id"] for c in board["columns"] if c["key"] == "todo")
+    created = auth_client.post(
+        "/api/cards",
+        json={"column_id": todo_id, "title": "Task", "due_date": "2026-04-01"},
+    ).json()
+    card_id = created["cards"][0]["id"]
+
+    response = auth_client.patch(f"/api/cards/{card_id}", json={"due_date": ""})
+    assert response.status_code == 200
+    card = next(c for c in response.json()["cards"] if c["id"] == card_id)
+    assert card["dueDate"] is None
+
+
+def test_update_card_omitting_due_date_leaves_it_unchanged(auth_client):
+    board = auth_client.get("/api/board").json()
+    todo_id = next(c["id"] for c in board["columns"] if c["key"] == "todo")
+    created = auth_client.post(
+        "/api/cards",
+        json={"column_id": todo_id, "title": "Task", "due_date": "2026-04-01"},
+    ).json()
+    card_id = created["cards"][0]["id"]
+
+    response = auth_client.patch(f"/api/cards/{card_id}", json={"title": "Renamed"})
+    assert response.status_code == 200
+    card = next(c for c in response.json()["cards"] if c["id"] == card_id)
+    assert card["title"] == "Renamed"
+    assert card["dueDate"] == "2026-04-01"
+
+
 def test_update_card_edits_fields(auth_client):
     board = auth_client.get("/api/board").json()
     todo_id = next(c["id"] for c in board["columns"] if c["key"] == "todo")

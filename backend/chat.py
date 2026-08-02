@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from typing import Optional
 
 from pydantic import BaseModel
@@ -14,6 +15,7 @@ class CardUpdate(BaseModel):
     column_key: str
     title: str
     description: Optional[str] = None
+    due_date: Optional[str] = None
     order: Optional[int] = None
     deleted: bool = False
 
@@ -36,6 +38,8 @@ class ChatResponse(BaseModel):
 SYSTEM_PROMPT_TEMPLATE = """You are an assistant embedded in a Kanban board app. \
 You can answer questions about the board and, when asked, create, edit, move, or delete cards.
 
+Today's date: {today}
+
 The board has 5 fixed columns, referenced by these keys (never invent other keys): \
 backlog, todo, in_progress, review, done. Columns cannot be added or removed - only renamed.
 
@@ -49,6 +53,9 @@ When you make changes, describe them in `board_update`:
 - `column_key` is the target column for the card - always one of the fixed keys above.
 - `title` is always required, even for a pure move - echo the card's existing title unchanged.
 - `description` is optional; leave it null to keep the existing description unchanged.
+- `due_date` is optional, formatted `YYYY-MM-DD`. Resolve relative dates (e.g. "tomorrow", \
+"next Friday") against today's date above. Leave it null to keep the existing due date \
+unchanged, or send an empty string `""` to clear it.
 - `order` is the 0-indexed position within the target column; leave it null to append at the end.
 - Only include a `columns` entry for a column whose display name you are actually renaming, \
 referencing it by its fixed `key`.
@@ -59,7 +66,9 @@ Always reply conversationally via `reply`, describing what you did or answering 
 
 def _build_system_prompt(username: str, board_id: int) -> str:
     current_board = board.get_board(username, board_id)
-    return SYSTEM_PROMPT_TEMPLATE.format(board_json=json.dumps(current_board))
+    return SYSTEM_PROMPT_TEMPLATE.format(
+        today=date.today().isoformat(), board_json=json.dumps(current_board)
+    )
 
 
 def _apply_card_update(username: str, board_id: int, card: CardUpdate) -> None:
@@ -78,7 +87,7 @@ def _apply_card_update(username: str, board_id: int, card: CardUpdate) -> None:
         return
 
     if card.id is None:
-        board.create_card(username, column_id, card.title, card.description or "")
+        board.create_card(username, column_id, card.title, card.description or "", card.due_date)
         return
 
     try:
@@ -87,6 +96,7 @@ def _apply_card_update(username: str, board_id: int, card: CardUpdate) -> None:
             int(card.id),
             title=card.title,
             description=card.description,
+            due_date=card.due_date,
             target_column_id=column_id,
             target_order=card.order,
         )

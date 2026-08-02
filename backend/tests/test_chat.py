@@ -100,6 +100,111 @@ def test_chat_moves_a_card(auth_client, monkeypatch):
     assert moved["columnId"] == done_id
 
 
+def test_chat_creates_a_card_with_a_due_date(auth_client, monkeypatch):
+    board_before = auth_client.get("/api/board").json()
+    todo_id = next(c["id"] for c in board_before["columns"] if c["key"] == "todo")
+
+    parsed = chat_module.ChatResponse(
+        reply="Added it, due June 15.",
+        board_update=chat_module.BoardUpdate(
+            cards=[
+                chat_module.CardUpdate(
+                    id=None, column_key="todo", title="Ship it", due_date="2026-06-15"
+                )
+            ]
+        ),
+    )
+    monkeypatch.setattr(chat_module, "get_client", lambda: _fake_client(parsed))
+
+    response = auth_client.post("/api/chat", json={"message": "add a card due June 15"})
+
+    assert response.status_code == 200
+    card = next(c for c in response.json()["board"]["cards"] if c["columnId"] == todo_id)
+    assert card["dueDate"] == "2026-06-15"
+
+
+def test_chat_sets_due_date_on_existing_card(auth_client, monkeypatch):
+    board_before = auth_client.get("/api/board").json()
+    todo_id = next(c["id"] for c in board_before["columns"] if c["key"] == "todo")
+    created = auth_client.post(
+        "/api/cards", json={"column_id": todo_id, "title": "Task"}
+    ).json()
+    card_id = created["cards"][0]["id"]
+
+    parsed = chat_module.ChatResponse(
+        reply="Set the due date.",
+        board_update=chat_module.BoardUpdate(
+            cards=[
+                chat_module.CardUpdate(
+                    id=card_id, column_key="todo", title="Task", due_date="2026-07-04"
+                )
+            ]
+        ),
+    )
+    monkeypatch.setattr(chat_module, "get_client", lambda: _fake_client(parsed))
+
+    response = auth_client.post("/api/chat", json={"message": "set the due date to July 4"})
+
+    assert response.status_code == 200
+    card = next(c for c in response.json()["board"]["cards"] if c["id"] == card_id)
+    assert card["dueDate"] == "2026-07-04"
+
+
+def test_chat_clears_due_date_with_empty_string(auth_client, monkeypatch):
+    board_before = auth_client.get("/api/board").json()
+    todo_id = next(c["id"] for c in board_before["columns"] if c["key"] == "todo")
+    created = auth_client.post(
+        "/api/cards",
+        json={"column_id": todo_id, "title": "Task", "due_date": "2026-07-04"},
+    ).json()
+    card_id = created["cards"][0]["id"]
+
+    parsed = chat_module.ChatResponse(
+        reply="Cleared the due date.",
+        board_update=chat_module.BoardUpdate(
+            cards=[
+                chat_module.CardUpdate(
+                    id=card_id, column_key="todo", title="Task", due_date=""
+                )
+            ]
+        ),
+    )
+    monkeypatch.setattr(chat_module, "get_client", lambda: _fake_client(parsed))
+
+    response = auth_client.post("/api/chat", json={"message": "clear the due date"})
+
+    assert response.status_code == 200
+    card = next(c for c in response.json()["board"]["cards"] if c["id"] == card_id)
+    assert card["dueDate"] is None
+
+
+def test_chat_omitting_due_date_leaves_it_unchanged(auth_client, monkeypatch):
+    board_before = auth_client.get("/api/board").json()
+    todo_id = next(c["id"] for c in board_before["columns"] if c["key"] == "todo")
+    created = auth_client.post(
+        "/api/cards",
+        json={"column_id": todo_id, "title": "Task", "due_date": "2026-07-04"},
+    ).json()
+    card_id = created["cards"][0]["id"]
+
+    parsed = chat_module.ChatResponse(
+        reply="Renamed it.",
+        board_update=chat_module.BoardUpdate(
+            cards=[
+                chat_module.CardUpdate(id=card_id, column_key="todo", title="Renamed task")
+            ]
+        ),
+    )
+    monkeypatch.setattr(chat_module, "get_client", lambda: _fake_client(parsed))
+
+    response = auth_client.post("/api/chat", json={"message": "rename it to Renamed task"})
+
+    assert response.status_code == 200
+    card = next(c for c in response.json()["board"]["cards"] if c["id"] == card_id)
+    assert card["title"] == "Renamed task"
+    assert card["dueDate"] == "2026-07-04"
+
+
 def test_chat_renames_a_column(auth_client, monkeypatch):
     parsed = chat_module.ChatResponse(
         reply="Renamed Backlog to Icebox.",

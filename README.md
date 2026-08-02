@@ -5,7 +5,7 @@ A project management app with a drag-and-drop Kanban board and an AI chat sideba
 ## Features
 
 - Sign in, or create an account (username, email, password), then view a Kanban board with 5 fixed, renamable columns (Backlog, To Do, In Progress, Review, Done)
-- Create, edit, delete, and drag-and-drop cards between columns
+- Create, edit, delete, and drag-and-drop cards between columns, each with an optional due date picked from the browser's native calendar picker (editable inline on the card or in the edit modal)
 - Every account has its own private personal board, plus a dropdown (below the "Kanban Board" heading) to switch to shared **projects** - boards visible to and editable by every signed-in user. Only the seeded demo account (`user`) can create a new project; once created, any user can switch to it and add/edit cards there
 - AI chat sidebar that can create/edit/move cards through natural language requests, scoped to whichever board (personal or project) is currently selected
 - All data persists in SQLite across restarts

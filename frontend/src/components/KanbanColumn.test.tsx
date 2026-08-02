@@ -12,10 +12,18 @@ describe("KanbanColumn", () => {
       <KanbanColumn
         column={column}
         cards={[
-          { id: "card-1", columnId: "col-1", title: "Task one", description: "", order: 0 },
+          {
+            id: "card-1",
+            columnId: "col-1",
+            title: "Task one",
+            description: "",
+            dueDate: null,
+            order: 0,
+          },
         ]}
         onRename={vi.fn()}
         onCardClick={vi.fn()}
+        onCardDueDateChange={vi.fn()}
         onAddCard={vi.fn()}
       />
     );
@@ -31,6 +39,7 @@ describe("KanbanColumn", () => {
         cards={[]}
         onRename={onRename}
         onCardClick={vi.fn()}
+        onCardDueDateChange={vi.fn()}
         onAddCard={vi.fn()}
       />
     );
@@ -51,6 +60,7 @@ describe("KanbanColumn", () => {
         cards={[]}
         onRename={onRename}
         onCardClick={vi.fn()}
+        onCardDueDateChange={vi.fn()}
         onAddCard={vi.fn()}
       />
     );

@@ -19,6 +19,7 @@ def _row_to_card(row: sqlite3.Row) -> dict:
         "columnId": str(row["column_id"]),
         "title": row["title"],
         "description": row["description"],
+        "dueDate": row["due_date"],
         "order": row["order"],
     }
 
@@ -111,7 +112,7 @@ def get_board(username: str, board_id: Optional[int] = None) -> dict:
         if column_ids:
             placeholders = ",".join("?" for _ in column_ids)
             cards = conn.execute(
-                f'SELECT id, column_id, title, description, "order" FROM cards '
+                f'SELECT id, column_id, title, description, due_date, "order" FROM cards '
                 f'WHERE column_id IN ({placeholders}) ORDER BY column_id, "order"',
                 column_ids,
             ).fetchall()
@@ -144,7 +145,9 @@ def rename_column(username: str, column_id: int, name: str) -> dict:
     return get_board(username, board_id)
 
 
-def create_card(username: str, column_id: int, title: str, description: str) -> dict:
+def create_card(
+    username: str, column_id: int, title: str, description: str, due_date: Optional[str] = None
+) -> dict:
     conn = get_connection()
     try:
         column = conn.execute(
@@ -160,8 +163,9 @@ def create_card(username: str, column_id: int, title: str, description: str) -> 
         ).fetchone()["n"]
 
         conn.execute(
-            'INSERT INTO cards (column_id, title, description, "order") VALUES (?, ?, ?, ?)',
-            (column_id, title, description, next_order),
+            'INSERT INTO cards (column_id, title, description, due_date, "order") '
+            "VALUES (?, ?, ?, ?, ?)",
+            (column_id, title, description, due_date or None, next_order),
         )
         conn.commit()
     finally:
@@ -174,6 +178,7 @@ def update_card(
     card_id: int,
     title: Optional[str] = None,
     description: Optional[str] = None,
+    due_date: Optional[str] = None,
     target_column_id: Optional[int] = None,
     target_order: Optional[int] = None,
 ) -> dict:
@@ -192,7 +197,7 @@ def update_card(
         board_id = card["board_id"]
         _assert_board_access(conn, username, board_id)
 
-        if title is not None or description is not None:
+        if title is not None or description is not None or due_date is not None:
             fields = []
             params: list = []
             if title is not None:
@@ -201,6 +206,11 @@ def update_card(
             if description is not None:
                 fields.append("description = ?")
                 params.append(description)
+            if due_date is not None:
+                fields.append("due_date = ?")
+                # An empty string means "clear the due date" - store NULL,
+                # not "", so it matches the no-due-date state of a new card.
+                params.append(due_date or None)
             fields.append("updated_at = CURRENT_TIMESTAMP")
             params.append(card_id)
             conn.execute(f"UPDATE cards SET {', '.join(fields)} WHERE id = ?", params)

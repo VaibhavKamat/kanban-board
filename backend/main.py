@@ -50,11 +50,13 @@ class CardCreateRequest(BaseModel):
     column_id: str
     title: str
     description: str = ""
+    due_date: str | None = None
 
 
 class CardUpdateRequest(BaseModel):
     title: str | None = None
     description: str | None = None
+    due_date: str | None = None
     column_id: str | None = None
     order: int | None = None
 
@@ -157,7 +159,7 @@ def rename_column_route(
 def create_card_route(body: CardCreateRequest, username: str = Depends(require_auth)):
     try:
         return board.create_card(
-            username, _parse_id(body.column_id), body.title, body.description
+            username, _parse_id(body.column_id), body.title, body.description, body.due_date
         )
     except LookupError:
         raise HTTPException(status_code=404, detail="Column not found")
@@ -174,6 +176,7 @@ def update_card_route(
             card_id,
             title=body.title,
             description=body.description,
+            due_date=body.due_date,
             target_column_id=target_column_id,
             target_order=body.order,
         )

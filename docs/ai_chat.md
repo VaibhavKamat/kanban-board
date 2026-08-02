@@ -4,7 +4,7 @@
 
 ## Request / response
 
-Request: `{"message": "<user's new message>"}`
+Request: `{"message": "<user's new message>", "board_id": "<optional>"}` - `board_id` selects which board (personal or a shared project, [[part 12]]) the turn reads/writes; omitted defaults to the caller's personal board.
 
 Response: `{"reply": "<text shown to the user>", "board": <same shape as GET /api/board>}` - the endpoint always returns the fresh, full board state, whether or not anything changed. The frontend (Part 10) can unconditionally replace its board state with `board` after every chat turn, with no polling and no separate `GET /api/board` call.
 
@@ -12,7 +12,7 @@ Response: `{"reply": "<text shown to the user>", "board": <same shape as GET /ap
 
 Uses Anthropic's Structured Outputs (`client.messages.parse()` with a Pydantic `output_format`), not a general tool the model chooses to invoke - every response is forced into the schema below. Model is `ai.MODEL` (`claude-opus-5`).
 
-- **System prompt**: fixed instructions plus the current board state, freshly serialized as JSON on every request (so it's always up to date; caching the system prompt was not a goal here).
+- **System prompt**: fixed instructions, today's date (`date.today().isoformat()`, so the model can resolve relative due dates like "next Friday"), and the current board state, freshly serialized as JSON on every request (so it's always up to date; caching the system prompt was not a goal here).
 - **Messages**: the last 20 persisted turns (`board.get_recent_messages`) followed by the new user message. Board content lives in the system prompt, not history, so old turns never show a stale board.
 
 ## Structured output schema
@@ -23,6 +23,7 @@ class CardUpdate(BaseModel):
     column_key: str              # target column: backlog | todo | in_progress | review | done
     title: str                   # always required, even for a pure move (echo the existing title)
     description: str | None = None  # null = leave unchanged; only meaningful for existing cards
+    due_date: str | None = None  # "YYYY-MM-DD"; null = leave unchanged, "" = clear
     order: int | None = None     # 0-indexed position in the target column; null = append at end
     deleted: bool = False        # true = delete this card (id required)
 

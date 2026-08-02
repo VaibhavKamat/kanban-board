@@ -10,6 +10,7 @@ export interface Card {
   columnId: string;
   title: string;
   description: string;
+  dueDate: string | null;
   order: number;
 }
 

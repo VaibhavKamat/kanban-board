@@ -1,12 +1,13 @@
 # Kanban Board
 
-A single-user project management app with a drag-and-drop Kanban board and an AI chat sidebar that can create, edit, and move cards on your behalf. Built as a Docker-packaged MVP: Next.js frontend, FastAPI backend, SQLite storage, and Claude for the AI chat.
+A project management app with a drag-and-drop Kanban board and an AI chat sidebar that can create, edit, and move cards on your behalf. Built as a Docker-packaged MVP: Next.js frontend, FastAPI backend, SQLite storage, and Claude for the AI chat.
 
 ## Features
 
 - Sign in, or create an account (username, email, password), then view a Kanban board with 5 fixed, renamable columns (Backlog, To Do, In Progress, Review, Done)
 - Create, edit, delete, and drag-and-drop cards between columns
-- AI chat sidebar that can create/edit/move cards through natural language requests
+- Every account has its own private personal board, plus a dropdown (below the "Kanban Board" heading) to switch to shared **projects** - boards visible to and editable by every signed-in user. Only the seeded demo account (`user`) can create a new project; once created, any user can switch to it and add/edit cards there
+- AI chat sidebar that can create/edit/move cards through natural language requests, scoped to whichever board (personal or project) is currently selected
 - All data persists in SQLite across restarts
 
 ## Tech stack
@@ -55,6 +56,8 @@ Sign in with the seeded demo account:
 - Password: `password`
 
 Or create your own account from the sign-in page ("Don't have an account? Sign up") with a username, email, and password (minimum 8 characters). Signing up only creates the account - you're returned to the sign-in page to log in with your new credentials. Each account gets its own private board.
+
+Only the `user` account can create projects (shared boards). To add one, sign in as `user`, open the dropdown below "Kanban Board", and use "+ New project". Any signed-in user can then switch to that project from their own dropdown and see/add cards there - projects are shared, so everyone sees the same cards.
 
 To stop the app:
 

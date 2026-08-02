@@ -131,3 +131,81 @@ def test_init_db_migrates_old_style_users_table(tmp_path, monkeypatch):
     finally:
         conn.close()
     assert user_count == 1
+
+
+def test_create_project_creates_project_board_and_columns(tmp_path, monkeypatch):
+    db_path = tmp_path / "test.db"
+    monkeypatch.setattr(db, "DB_PATH", db_path)
+    db.init_db()
+
+    board_id = db.create_project("user", "project1")
+
+    conn = db.get_connection()
+    try:
+        board = conn.execute("SELECT type, name FROM boards WHERE id = ?", (board_id,)).fetchone()
+        columns = conn.execute(
+            'SELECT key FROM columns WHERE board_id = ? ORDER BY "order"', (board_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+
+    assert board["type"] == "project"
+    assert board["name"] == "project1"
+    assert [c["key"] for c in columns] == ["backlog", "todo", "in_progress", "review", "done"]
+
+
+def test_create_project_duplicate_name_raises_integrity_error(tmp_path, monkeypatch):
+    db_path = tmp_path / "test.db"
+    monkeypatch.setattr(db, "DB_PATH", db_path)
+    db.init_db()
+
+    db.create_project("user", "project1")
+
+    try:
+        db.create_project("user", "project1")
+        assert False, "expected IntegrityError"
+    except sqlite3.IntegrityError:
+        pass
+
+
+def test_init_db_migrates_old_style_boards_table(tmp_path, monkeypatch):
+    db_path = tmp_path / "test.db"
+    monkeypatch.setattr(db, "DB_PATH", db_path)
+
+    # Simulate a database created before boards.type/name existed.
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, "
+        "email TEXT, password_hash TEXT)"
+    )
+    conn.execute("INSERT INTO users (username, email, password_hash) VALUES ('user', 'user@example.com', 'x')")
+    conn.execute(
+        "CREATE TABLE boards (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, "
+        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"
+    )
+    conn.execute("INSERT INTO boards (user_id) VALUES (1)")
+    conn.execute(
+        "CREATE TABLE columns (id INTEGER PRIMARY KEY AUTOINCREMENT, board_id INTEGER NOT NULL, "
+        'key TEXT NOT NULL, name TEXT NOT NULL, "order" INTEGER NOT NULL)'
+    )
+    conn.execute("INSERT INTO columns (board_id, key, name, \"order\") VALUES (1, 'backlog', 'Backlog', 0)")
+    conn.execute(
+        "CREATE TABLE cards (id INTEGER PRIMARY KEY AUTOINCREMENT, column_id INTEGER NOT NULL, "
+        'title TEXT NOT NULL, description TEXT DEFAULT \'\', "order" INTEGER NOT NULL)'
+    )
+    conn.execute("INSERT INTO cards (column_id, title, \"order\") VALUES (1, 'Pre-migration card', 0)")
+    conn.commit()
+    conn.close()
+
+    db.init_db()
+
+    conn = db.get_connection()
+    try:
+        board = conn.execute("SELECT type, name FROM boards WHERE id = 1").fetchone()
+        card = conn.execute("SELECT title FROM cards WHERE id = 1").fetchone()
+    finally:
+        conn.close()
+
+    assert board["type"] == "personal"
+    assert board["name"] is None
+    assert card["title"] == "Pre-migration card"

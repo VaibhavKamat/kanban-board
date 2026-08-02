@@ -17,7 +17,7 @@ from auth import (
     require_auth,
     verify_credentials,
 )
-from db import create_user, init_db
+from db import HARDCODED_USERNAME, create_project, create_user, init_db
 
 
 @asynccontextmanager
@@ -61,6 +61,11 @@ class CardUpdateRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
+    board_id: str | None = None
+
+
+class ProjectCreateRequest(BaseModel):
+    name: str
 
 
 def _parse_id(value: str) -> int:
@@ -68,6 +73,10 @@ def _parse_id(value: str) -> int:
         return int(value)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid id")
+
+
+def _resolve_board_id(board_id: str | None, username: str) -> int:
+    return _parse_id(board_id) if board_id is not None else board.get_personal_board_id(username)
 
 
 @app.get("/api/hello")
@@ -111,8 +120,27 @@ def me(username: str | None = Depends(get_current_username)):
 
 
 @app.get("/api/board")
-def get_board_route(username: str = Depends(require_auth)):
-    return board.get_board(username)
+def get_board_route(board_id: str | None = None, username: str = Depends(require_auth)):
+    try:
+        return board.get_board(username, _resolve_board_id(board_id, username))
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Board not found")
+
+
+@app.get("/api/boards")
+def list_boards_route(username: str = Depends(require_auth)):
+    return {"boards": board.list_boards(username)}
+
+
+@app.post("/api/projects")
+def create_project_route(body: ProjectCreateRequest, username: str = Depends(require_auth)):
+    if username != HARDCODED_USERNAME:
+        raise HTTPException(status_code=403, detail="Only the demo user can create projects")
+    try:
+        board_id = create_project(username, body.name)
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=409, detail="A project with that name already exists")
+    return {"id": str(board_id), "type": "project", "name": body.name}
 
 
 @app.patch("/api/columns/{column_id}")
@@ -174,8 +202,11 @@ def ai_test_route(username: str = Depends(require_auth)):
 
 
 @app.get("/api/messages")
-def get_messages_route(username: str = Depends(require_auth)):
-    return {"messages": board.get_recent_messages(username)}
+def get_messages_route(board_id: str | None = None, username: str = Depends(require_auth)):
+    try:
+        return {"messages": board.get_recent_messages(username, _resolve_board_id(board_id, username))}
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Board not found")
 
 
 @app.post("/api/chat")
@@ -183,7 +214,12 @@ def chat_route(body: ChatRequest, username: str = Depends(require_auth)):
     # Broad except for the same reason as /api/ai-test: this is a system
     # boundary (external API call) that must never leak a raw stack trace.
     try:
-        return run_chat(username, body.message)
+        resolved_board_id = _resolve_board_id(body.board_id, username)
+        return run_chat(username, body.message, resolved_board_id)
+    except HTTPException:
+        raise
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Board not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chat request failed: {e}")
 

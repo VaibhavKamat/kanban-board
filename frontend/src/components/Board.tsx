@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -10,18 +10,30 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 
+import { BoardSwitcher } from "@/components/BoardSwitcher";
 import { CardModal } from "@/components/CardModal";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { KanbanColumn } from "@/components/KanbanColumn";
+import { useBoards } from "@/hooks/useBoards";
 import { useChat } from "@/hooks/useChat";
 import { useKanbanBoard } from "@/hooks/useKanbanBoard";
 import type { Card } from "@/types/kanban";
 
 interface BoardProps {
+  username: string;
   onLogout: () => void;
 }
 
-export function Board({ onLogout }: BoardProps) {
+export function Board({ username, onLogout }: BoardProps) {
+  const { boards, createProject } = useBoards();
+  const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeBoardId !== null || boards.length === 0) return;
+    const personal = boards.find((b) => b.type === "personal");
+    if (personal) setActiveBoardId(personal.id);
+  }, [boards, activeBoardId]);
+
   const {
     columns,
     cards,
@@ -34,14 +46,19 @@ export function Board({ onLogout }: BoardProps) {
     createCard,
     deleteCard,
     applyBoard,
-  } = useKanbanBoard();
+  } = useKanbanBoard(activeBoardId);
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const chat = useChat(applyBoard);
+  const chat = useChat(activeBoardId, applyBoard);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
+
+  function handleSelectBoard(boardId: string) {
+    setActiveBoardId(boardId);
+    setActiveCard(null);
+  }
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -73,7 +90,7 @@ export function Board({ onLogout }: BoardProps) {
   return (
     <div className="flex h-screen bg-white">
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden p-4">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-2 flex items-center justify-between">
           <h1 className="inline-block border-b-4 border-accent-yellow pb-1 text-2xl font-bold text-dark-navy">
             Kanban Board
           </h1>
@@ -92,6 +109,14 @@ export function Board({ onLogout }: BoardProps) {
             </button>
           </div>
         </div>
+
+        <BoardSwitcher
+          boards={boards}
+          activeBoardId={activeBoardId}
+          username={username}
+          onSelect={handleSelectBoard}
+          onCreateProject={createProject}
+        />
 
         {error && (
           <p className="mb-4 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>

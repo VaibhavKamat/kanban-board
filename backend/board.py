@@ -23,18 +23,70 @@ def _row_to_card(row: sqlite3.Row) -> dict:
     }
 
 
-def _get_board_id_for_user(conn: sqlite3.Connection, username: str) -> int:
+def resolve_personal_board_id(conn: sqlite3.Connection, username: str) -> int:
     row = conn.execute(
         """
         SELECT boards.id FROM boards
         JOIN users ON users.id = boards.user_id
-        WHERE users.username = ?
+        WHERE users.username = ? AND boards.type = 'personal'
         """,
         (username,),
     ).fetchone()
     if row is None:
-        raise LookupError(f"No board for user {username!r}")
+        raise LookupError(f"No personal board for user {username!r}")
     return row["id"]
+
+
+def get_personal_board_id(username: str) -> int:
+    conn = get_connection()
+    try:
+        return resolve_personal_board_id(conn, username)
+    finally:
+        conn.close()
+
+
+def _assert_board_access(conn: sqlite3.Connection, username: str, board_id: int) -> None:
+    row = conn.execute(
+        """
+        SELECT boards.type AS type, users.username AS owner_username
+        FROM boards
+        JOIN users ON users.id = boards.user_id
+        WHERE boards.id = ?
+        """,
+        (board_id,),
+    ).fetchone()
+    if row is None:
+        raise LookupError(f"No board with id {board_id!r}")
+    if row["type"] == "project":
+        return
+    if row["owner_username"] != username:
+        raise LookupError(f"No board with id {board_id!r}")
+
+
+def list_boards(username: str) -> list[dict]:
+    conn = get_connection()
+    try:
+        personal = conn.execute(
+            """
+            SELECT boards.id, boards.type, boards.name FROM boards
+            JOIN users ON users.id = boards.user_id
+            WHERE users.username = ? AND boards.type = 'personal'
+            """,
+            (username,),
+        ).fetchone()
+        projects = conn.execute(
+            "SELECT id, type, name FROM boards WHERE type = 'project' ORDER BY name"
+        ).fetchall()
+
+        result = []
+        if personal is not None:
+            result.append({"id": str(personal["id"]), "type": personal["type"], "name": personal["name"]})
+        result.extend(
+            {"id": str(p["id"]), "type": p["type"], "name": p["name"]} for p in projects
+        )
+        return result
+    finally:
+        conn.close()
 
 
 def _resequence(conn: sqlite3.Connection, ordered_card_ids: list[int]) -> None:
@@ -42,10 +94,14 @@ def _resequence(conn: sqlite3.Connection, ordered_card_ids: list[int]) -> None:
         conn.execute('UPDATE cards SET "order" = ? WHERE id = ?', (index, card_id))
 
 
-def get_board(username: str) -> dict:
+def get_board(username: str, board_id: Optional[int] = None) -> dict:
     conn = get_connection()
     try:
-        board_id = _get_board_id_for_user(conn, username)
+        if board_id is None:
+            board_id = resolve_personal_board_id(conn, username)
+        else:
+            _assert_board_access(conn, username, board_id)
+
         columns = conn.execute(
             'SELECT id, key, name, "order" FROM columns WHERE board_id = ? ORDER BY "order"',
             (board_id,),
@@ -73,28 +129,31 @@ def get_board(username: str) -> dict:
 def rename_column(username: str, column_id: int, name: str) -> dict:
     conn = get_connection()
     try:
-        board_id = _get_board_id_for_user(conn, username)
-        result = conn.execute(
-            "UPDATE columns SET name = ? WHERE id = ? AND board_id = ?",
-            (name, column_id, board_id),
-        )
-        if result.rowcount == 0:
+        column = conn.execute(
+            "SELECT board_id FROM columns WHERE id = ?", (column_id,)
+        ).fetchone()
+        if column is None:
             raise LookupError("Column not found")
+        board_id = column["board_id"]
+        _assert_board_access(conn, username, board_id)
+
+        conn.execute("UPDATE columns SET name = ? WHERE id = ?", (name, column_id))
         conn.commit()
     finally:
         conn.close()
-    return get_board(username)
+    return get_board(username, board_id)
 
 
 def create_card(username: str, column_id: int, title: str, description: str) -> dict:
     conn = get_connection()
     try:
-        board_id = _get_board_id_for_user(conn, username)
         column = conn.execute(
-            "SELECT id FROM columns WHERE id = ? AND board_id = ?", (column_id, board_id)
+            "SELECT board_id FROM columns WHERE id = ?", (column_id,)
         ).fetchone()
         if column is None:
             raise LookupError("Column not found")
+        board_id = column["board_id"]
+        _assert_board_access(conn, username, board_id)
 
         next_order = conn.execute(
             "SELECT COUNT(*) AS n FROM cards WHERE column_id = ?", (column_id,)
@@ -107,7 +166,7 @@ def create_card(username: str, column_id: int, title: str, description: str) -> 
         conn.commit()
     finally:
         conn.close()
-    return get_board(username)
+    return get_board(username, board_id)
 
 
 def update_card(
@@ -120,17 +179,18 @@ def update_card(
 ) -> dict:
     conn = get_connection()
     try:
-        board_id = _get_board_id_for_user(conn, username)
         card = conn.execute(
             """
-            SELECT cards.id, cards.column_id FROM cards
+            SELECT cards.id, cards.column_id, columns.board_id AS board_id FROM cards
             JOIN columns ON columns.id = cards.column_id
-            WHERE cards.id = ? AND columns.board_id = ?
+            WHERE cards.id = ?
             """,
-            (card_id, board_id),
+            (card_id,),
         ).fetchone()
         if card is None:
             raise LookupError("Card not found")
+        board_id = card["board_id"]
+        _assert_board_access(conn, username, board_id)
 
         if title is not None or description is not None:
             fields = []
@@ -192,13 +252,13 @@ def update_card(
         conn.commit()
     finally:
         conn.close()
-    return get_board(username)
+    return get_board(username, board_id)
 
 
-def get_column_id_by_key(username: str, key: str) -> int:
+def get_column_id_by_key(username: str, board_id: int, key: str) -> int:
     conn = get_connection()
     try:
-        board_id = _get_board_id_for_user(conn, username)
+        _assert_board_access(conn, username, board_id)
         row = conn.execute(
             "SELECT id FROM columns WHERE board_id = ? AND key = ?", (board_id, key)
         ).fetchone()
@@ -209,10 +269,10 @@ def get_column_id_by_key(username: str, key: str) -> int:
         conn.close()
 
 
-def get_recent_messages(username: str, limit: int = 20) -> list[dict]:
+def get_recent_messages(username: str, board_id: int, limit: int = 20) -> list[dict]:
     conn = get_connection()
     try:
-        board_id = _get_board_id_for_user(conn, username)
+        _assert_board_access(conn, username, board_id)
         rows = conn.execute(
             "SELECT id, role, content FROM messages WHERE board_id = ? ORDER BY id DESC LIMIT ?",
             (board_id, limit),
@@ -225,10 +285,10 @@ def get_recent_messages(username: str, limit: int = 20) -> list[dict]:
         conn.close()
 
 
-def add_message(username: str, role: str, content: str) -> None:
+def add_message(username: str, board_id: int, role: str, content: str) -> None:
     conn = get_connection()
     try:
-        board_id = _get_board_id_for_user(conn, username)
+        _assert_board_access(conn, username, board_id)
         conn.execute(
             "INSERT INTO messages (board_id, role, content) VALUES (?, ?, ?)",
             (board_id, role, content),
@@ -241,17 +301,18 @@ def add_message(username: str, role: str, content: str) -> None:
 def delete_card(username: str, card_id: int) -> dict:
     conn = get_connection()
     try:
-        board_id = _get_board_id_for_user(conn, username)
         card = conn.execute(
             """
-            SELECT cards.id, cards.column_id FROM cards
+            SELECT cards.id, cards.column_id, columns.board_id AS board_id FROM cards
             JOIN columns ON columns.id = cards.column_id
-            WHERE cards.id = ? AND columns.board_id = ?
+            WHERE cards.id = ?
             """,
-            (card_id, board_id),
+            (card_id,),
         ).fetchone()
         if card is None:
             raise LookupError("Card not found")
+        board_id = card["board_id"]
+        _assert_board_access(conn, username, board_id)
 
         conn.execute("DELETE FROM cards WHERE id = ?", (card_id,))
 
@@ -266,4 +327,4 @@ def delete_card(username: str, card_id: int) -> dict:
         conn.commit()
     finally:
         conn.close()
-    return get_board(username)
+    return get_board(username, board_id)

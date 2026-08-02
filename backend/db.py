@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS boards (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id),
+    type TEXT NOT NULL DEFAULT 'personal',
+    name TEXT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -84,12 +86,30 @@ def _migrate_users_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _migrate_boards_table(conn: sqlite3.Connection) -> None:
+    # Covers upgrading a boards table created before type/name existed -
+    # existing rows get type='personal' automatically via the DEFAULT clause.
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(boards)").fetchall()}
+    if "type" not in columns:
+        conn.execute("ALTER TABLE boards ADD COLUMN type TEXT NOT NULL DEFAULT 'personal'")
+    if "name" not in columns:
+        conn.execute("ALTER TABLE boards ADD COLUMN name TEXT")
+    # Partial index: only project boards need a unique name, so personal
+    # boards' NULL names never collide with each other or with projects.
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_boards_project_name "
+        "ON boards(name) WHERE type = 'project'"
+    )
+    conn.commit()
+
+
 def init_db() -> None:
     conn = get_connection()
     try:
         conn.executescript(SCHEMA)
         conn.commit()
         _migrate_users_table(conn)
+        _migrate_boards_table(conn)
         _seed(conn)
     finally:
         conn.close()
@@ -107,12 +127,16 @@ def get_user_by_username(username: str) -> sqlite3.Row | None:
         conn.close()
 
 
-def _create_board_with_columns(conn: sqlite3.Connection, user_id: int) -> int:
-    board_id = conn.execute("INSERT INTO boards (user_id) VALUES (?)", (user_id,)).lastrowid
-    for key, name, order in FIXED_COLUMNS:
+def _create_board_with_columns(
+    conn: sqlite3.Connection, user_id: int, board_type: str = "personal", name: str | None = None
+) -> int:
+    board_id = conn.execute(
+        "INSERT INTO boards (user_id, type, name) VALUES (?, ?, ?)", (user_id, board_type, name)
+    ).lastrowid
+    for key, col_name, order in FIXED_COLUMNS:
         conn.execute(
             'INSERT INTO columns (board_id, key, name, "order") VALUES (?, ?, ?, ?)',
-            (board_id, key, name, order),
+            (board_id, key, col_name, order),
         )
     return board_id
 
@@ -127,6 +151,19 @@ def create_user(username: str, email: str, password: str) -> int:
         _create_board_with_columns(conn, user_id)
         conn.commit()
         return user_id
+    finally:
+        conn.close()
+
+
+def create_project(creator_username: str, name: str) -> int:
+    conn = get_connection()
+    try:
+        creator = conn.execute(
+            "SELECT id FROM users WHERE username = ?", (creator_username,)
+        ).fetchone()
+        board_id = _create_board_with_columns(conn, creator["id"], board_type="project", name=name)
+        conn.commit()
+        return board_id
     finally:
         conn.close()
 
@@ -148,7 +185,9 @@ def _seed(conn: sqlite3.Connection) -> None:
                 (HARDCODED_EMAIL, hash_password(HARDCODED_PASSWORD), user_id),
             )
 
-    board = conn.execute("SELECT id FROM boards WHERE user_id = ?", (user_id,)).fetchone()
+    board = conn.execute(
+        "SELECT id FROM boards WHERE user_id = ? AND type = 'personal'", (user_id,)
+    ).fetchone()
     if board is None:
         _create_board_with_columns(conn, user_id)
     else:

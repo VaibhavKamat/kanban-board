@@ -8,12 +8,13 @@ This project is building a Project Management App. Key features:
 - The Kanban board has fixed columns that can be renamed
 - The cards on the Kanban board can be moved with drag and drop, and edited
 - There is an AI chat feature in a sidebar; the AI is able to create / edit / move one or more cards
+- Each user has a private personal board, and can switch to shared "projects" (visible and editable by every signed-in user) via a dropdown under the board heading
 
 ## Limitations
 
 Sign in supports both the seeded demo account (`user`/`password`) and self-service sign up (email, username, password) - the database supports multiple users.
 
-For the MVP, there will only be 1 Kanban board per signed in user.
+Every user has exactly 1 private personal board. In addition, only the seeded demo account (`user`) can create shared projects; once created, a project is visible to and editable by every signed-in user. There is no project rename/delete and no per-card attribution.
 
 For the MVP, this will run locally (in a docker container)
 

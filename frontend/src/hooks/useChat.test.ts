@@ -21,7 +21,7 @@ describe("useChat", () => {
     ]);
     const onBoardUpdate = vi.fn();
 
-    const { result } = renderHook(() => useChat(onBoardUpdate));
+    const { result } = renderHook(() => useChat(null, onBoardUpdate));
 
     await waitFor(() => expect(result.current.messages).toHaveLength(2));
     expect(result.current.messages[0].content).toBe("hi");
@@ -32,7 +32,7 @@ describe("useChat", () => {
     const board = { columns: [], cards: [] };
     mockedApi.sendChatMessage.mockResolvedValue({ reply: "Done!", board });
 
-    const { result } = renderHook(() => useChat(onBoardUpdate));
+    const { result } = renderHook(() => useChat(null, onBoardUpdate));
     // Flush the mount effect's getMessages() resolution before sending, so it
     // can't race with (and overwrite) the optimistic message below.
     await act(async () => {});
@@ -53,7 +53,7 @@ describe("useChat", () => {
     const onBoardUpdate = vi.fn();
     mockedApi.sendChatMessage.mockRejectedValue(new Error("network error"));
 
-    const { result } = renderHook(() => useChat(onBoardUpdate));
+    const { result } = renderHook(() => useChat(null, onBoardUpdate));
     await act(async () => {});
 
     await act(async () => {
@@ -80,7 +80,7 @@ describe("useChat", () => {
     });
     const onBoardUpdate = vi.fn();
 
-    const { result } = renderHook(() => useChat(onBoardUpdate));
+    const { result } = renderHook(() => useChat(null, onBoardUpdate));
 
     // Send before history has resolved at all.
     await act(async () => {
@@ -105,7 +105,7 @@ describe("useChat", () => {
 
   it("ignores empty messages", async () => {
     const onBoardUpdate = vi.fn();
-    const { result } = renderHook(() => useChat(onBoardUpdate));
+    const { result } = renderHook(() => useChat(null, onBoardUpdate));
     await act(async () => {});
 
     await act(async () => {
@@ -114,5 +114,30 @@ describe("useChat", () => {
 
     expect(result.current.messages).toHaveLength(0);
     expect(mockedApi.sendChatMessage).not.toHaveBeenCalled();
+  });
+
+  it("clears messages and loads the new board's history when boardId changes", async () => {
+    mockedApi.getMessages.mockResolvedValueOnce([
+      { id: "1", role: "user", content: "personal board question" },
+    ]);
+    const onBoardUpdate = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({ boardId }) => useChat(boardId, onBoardUpdate),
+      { initialProps: { boardId: "board-1" as string | null } }
+    );
+    await waitFor(() => expect(result.current.messages).toHaveLength(1));
+    expect(mockedApi.getMessages).toHaveBeenCalledWith("board-1");
+
+    mockedApi.getMessages.mockResolvedValueOnce([
+      { id: "2", role: "assistant", content: "project board answer" },
+    ]);
+
+    rerender({ boardId: "board-2" });
+
+    await waitFor(() =>
+      expect(result.current.messages.map((m) => m.content)).toEqual(["project board answer"])
+    );
+    expect(mockedApi.getMessages).toHaveBeenCalledWith("board-2");
   });
 });

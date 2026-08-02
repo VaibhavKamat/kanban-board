@@ -21,8 +21,10 @@ describe("App", () => {
       vi.fn((url: string) => {
         if (url === "/api/me") return jsonResponse({ authenticated: false, username: null });
         if (url === "/api/login") return jsonResponse({ username: "user" });
-        if (url === "/api/board") return jsonResponse({ columns: [], cards: [] });
-        if (url === "/api/messages") return jsonResponse({ messages: [] });
+        if (url === "/api/boards")
+          return jsonResponse({ boards: [{ id: "1", type: "personal", name: null }] });
+        if (url.startsWith("/api/board")) return jsonResponse({ columns: [], cards: [] });
+        if (url.startsWith("/api/messages")) return jsonResponse({ messages: [] });
         throw new Error(`Unexpected fetch: ${url}`);
       })
     );
@@ -45,8 +47,10 @@ describe("App", () => {
         if (url === "/api/me") return jsonResponse({ authenticated: false, username: null });
         if (url === "/api/signup") return jsonResponse({ username: "alice" });
         if (url === "/api/login") return jsonResponse({ username: "alice" });
-        if (url === "/api/board") return jsonResponse({ columns: [], cards: [] });
-        if (url === "/api/messages") return jsonResponse({ messages: [] });
+        if (url === "/api/boards")
+          return jsonResponse({ boards: [{ id: "1", type: "personal", name: null }] });
+        if (url.startsWith("/api/board")) return jsonResponse({ columns: [], cards: [] });
+        if (url.startsWith("/api/messages")) return jsonResponse({ messages: [] });
         throw new Error(`Unexpected fetch: ${url}`);
       })
     );
@@ -77,8 +81,10 @@ describe("App", () => {
       vi.fn((url: string) => {
         if (url === "/api/me") return jsonResponse({ authenticated: true, username: "user" });
         if (url === "/api/logout") return jsonResponse({ ok: true });
-        if (url === "/api/board") return jsonResponse({ columns: [], cards: [] });
-        if (url === "/api/messages") return jsonResponse({ messages: [] });
+        if (url === "/api/boards")
+          return jsonResponse({ boards: [{ id: "1", type: "personal", name: null }] });
+        if (url.startsWith("/api/board")) return jsonResponse({ columns: [], cards: [] });
+        if (url.startsWith("/api/messages")) return jsonResponse({ messages: [] });
         throw new Error(`Unexpected fetch: ${url}`);
       })
     );
@@ -90,5 +96,47 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Log out"));
 
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+  });
+
+  it("switches to a project board and shows its own cards", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        if (url === "/api/me") return jsonResponse({ authenticated: true, username: "user" });
+        if (url === "/api/boards")
+          return jsonResponse({
+            boards: [
+              { id: "1", type: "personal", name: null },
+              { id: "2", type: "project", name: "project1" },
+            ],
+          });
+        if (url === "/api/board?board_id=2")
+          return jsonResponse({
+            columns: [{ id: "col", key: "backlog", name: "Backlog", order: 0 }],
+            cards: [
+              { id: "c2", columnId: "col", title: "Project card", description: "", order: 0 },
+            ],
+          });
+        if (url.startsWith("/api/board"))
+          return jsonResponse({
+            columns: [{ id: "col", key: "backlog", name: "Backlog", order: 0 }],
+            cards: [
+              { id: "c1", columnId: "col", title: "Personal card", description: "", order: 0 },
+            ],
+          });
+        if (url.startsWith("/api/messages")) return jsonResponse({ messages: [] });
+        throw new Error(`Unexpected fetch: ${url}`);
+      })
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Personal card")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /user/ }));
+    fireEvent.click(screen.getByText("project1"));
+
+    expect(await screen.findByText("Project card")).toBeInTheDocument();
+    expect(screen.queryByText("Personal card")).not.toBeInTheDocument();
   });
 });

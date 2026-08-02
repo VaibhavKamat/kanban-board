@@ -4,11 +4,15 @@ export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 export function useAuth() {
   const [status, setStatus] = useState<AuthStatus>("loading");
+  const [username, setUsername] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/me", { credentials: "include" })
       .then((res) => res.json())
-      .then((data) => setStatus(data.authenticated ? "authenticated" : "unauthenticated"))
+      .then((data) => {
+        setStatus(data.authenticated ? "authenticated" : "unauthenticated");
+        setUsername(data.username);
+      })
       .catch(() => setStatus("unauthenticated"));
   }, []);
 
@@ -25,6 +29,7 @@ export function useAuth() {
     }
 
     setStatus("authenticated");
+    setUsername(username);
     return null;
   }
 
@@ -48,7 +53,8 @@ export function useAuth() {
   async function logout() {
     await fetch("/api/logout", { method: "POST", credentials: "include" });
     setStatus("unauthenticated");
+    setUsername(null);
   }
 
-  return { status, login, signup, logout };
+  return { status, username, login, signup, logout };
 }

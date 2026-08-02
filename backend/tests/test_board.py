@@ -153,3 +153,64 @@ def test_card_and_column_routes_require_auth(client):
     assert client.patch("/api/cards/1", json={"title": "X"}).status_code == 401
     assert client.delete("/api/cards/1").status_code == 401
     assert client.patch("/api/columns/1", json={"name": "X"}).status_code == 401
+
+
+def test_list_boards_includes_personal_and_projects(auth_client):
+    auth_client.post("/api/projects", json={"name": "project1"})
+
+    response = auth_client.get("/api/boards")
+    assert response.status_code == 200
+    boards = response.json()["boards"]
+    assert [b["type"] for b in boards] == ["personal", "project"]
+    assert boards[0]["name"] is None
+    assert boards[1]["name"] == "project1"
+
+
+def test_project_cards_visible_and_editable_by_another_user(client):
+    client.post("/api/login", json={"username": "user", "password": "password"})
+    project = client.post("/api/projects", json={"name": "project1"}).json()
+    project_id = project["id"]
+
+    board = client.get(f"/api/board?board_id={project_id}").json()
+    todo_id = next(c["id"] for c in board["columns"] if c["key"] == "todo")
+    client.post("/api/cards", json={"column_id": todo_id, "title": "user's card"})
+    client.post("/api/logout")
+
+    client.post(
+        "/api/signup",
+        json={"username": "alice", "email": "alice@example.com", "password": "correcthorse"},
+    )
+    client.post("/api/login", json={"username": "alice", "password": "correcthorse"})
+
+    board = client.get(f"/api/board?board_id={project_id}").json()
+    assert [c["title"] for c in board["cards"]] == ["user's card"]
+
+    response = client.post("/api/cards", json={"column_id": todo_id, "title": "alice's card"})
+    assert response.status_code == 200
+    titles = {c["title"] for c in response.json()["cards"]}
+    assert titles == {"user's card", "alice's card"}
+
+
+def test_cannot_access_another_users_personal_board(client):
+    client.post("/api/login", json={"username": "user", "password": "password"})
+    boards = client.get("/api/boards").json()["boards"]
+    user_board_id = next(b["id"] for b in boards if b["type"] == "personal")
+    client.post("/api/logout")
+
+    client.post(
+        "/api/signup",
+        json={"username": "alice", "email": "alice@example.com", "password": "correcthorse"},
+    )
+    client.post("/api/login", json={"username": "alice", "password": "correcthorse"})
+
+    response = client.get(f"/api/board?board_id={user_board_id}")
+    assert response.status_code == 404
+
+
+def test_get_board_default_still_returns_personal_board(auth_client):
+    # Regression check: creating a project must not change the default
+    # (no board_id) behavior of /api/board for existing callers.
+    auth_client.post("/api/projects", json={"name": "project1"})
+    response = auth_client.get("/api/board")
+    assert response.status_code == 200
+    assert response.json()["cards"] == []

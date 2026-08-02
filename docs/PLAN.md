@@ -398,3 +398,42 @@ Fixed Kanban columns (confirmed): **Backlog / To Do / In Progress / Review / Don
 - [x] Frontend test suite passes (38/38), including the new `LoginForm`/`App` signup tests
 - [x] `npm run build` compiles with no TypeScript errors
 - [x] Manual verification of the signup flow and the pre-existing-database migration path in a real running instance - signup returns to sign-in (not auto-login), isolated per-user boards, duplicate-username error, demo login, and a simulated pre-migration `kanban.db` all verified via a real browser and direct API calls, zero console/page errors
+
+---
+
+## Part 12: Shared projects alongside personal boards
+
+**Goal:** Let any signed-in user switch between their private personal board and shared "projects" via a dropdown under the "Kanban Board" heading. Projects are visible to and editable by every signed-in user, but only the seeded demo account (`user`) can create one.
+
+### Design decisions
+
+- `boards` gets `type TEXT NOT NULL DEFAULT 'personal'` and `name TEXT`, migrated the same way as the `users` table in [[part 11]] - existing rows get `type='personal'` automatically via the `ALTER TABLE ADD COLUMN ... DEFAULT` clause, no data loss. Project name uniqueness uses a partial unique index (`WHERE type = 'project'`) so personal boards' `NULL` names never collide.
+- No membership/join table: a board is accessible if it's `type='personal'` and owned by the caller, or `type='project'` (open to everyone signed in). `board._assert_board_access` is the single authorization primitive for both cases.
+- Project creation is server-side gated to `username == db.HARDCODED_USERNAME` (403 otherwise) - this is the actual access-control boundary, not just a hidden UI control.
+- Almost the entire existing API surface needed no `board_id` parameter at all: `PATCH /api/columns/{id}`, `POST /api/cards`, `PATCH`/`DELETE /api/cards/{id}` already resolve their board from the column/card id in the URL, so only their authorization check changed. Only `GET /api/board`, `GET /api/messages`, and `POST /api/chat` gained an **optional** `board_id`, defaulting to the caller's personal board when omitted - this kept the entire pre-existing test suite and every old frontend call site working unchanged.
+- `chat.py`'s `chat()` resolves the personal board when `board_id` is omitted, then threads the resolved id through every board.py call it makes - so chatting while a project is selected reads/writes that project. Since `messages` was already keyed by `board_id` (not `user_id`), a project's chat history is naturally shared with no schema change.
+- No client-side routing exists (static export, single-page state machine per `frontend/AGENTS.md`), so board switching is React state: a new `useBoards()` hook loads `GET /api/boards` once, `Board.tsx` holds `activeBoardId` (defaulting to the personal board once resolved) and passes it into `useKanbanBoard(boardId)` and `useChat(boardId, applyBoard)`, both of which now refetch/reset on `boardId` change.
+- No project rename/delete, no per-card "created by" attribution - out of scope, matching the existing "fixed columns, no add/remove" precedent.
+- **Real bug found before running any tests, fixed**: the original `_seed()` looked up the demo user's board via `WHERE user_id = ?` with no `type` filter. Once `user` could own more than one board (their personal board plus any projects they create), a later `init_db()` run could have matched a project board instead of the personal one and silently stopped re-seeding missing columns on the actual personal board. Fixed by scoping that lookup to `type = 'personal'`.
+- **Real bug found via manual review before running tests, fixed**: `chat_route`'s broad `except Exception` (justified for the external Anthropic API boundary) would have also swallowed the deliberate `HTTPException(400)` raised by invalid `board_id` parsing and reported it as a misleading 500. Fixed by re-raising `HTTPException` before the generic catch.
+
+### Checklist
+
+- [x] Add `type`, `name` to the `boards` schema plus an idempotent migration for existing databases (partial unique index for project names)
+- [x] Generalize board-creation to `db._create_board_with_columns(conn, user_id, board_type, name)`; add `db.create_project()`
+- [x] Replace `board._get_board_id_for_user` with `board._assert_board_access` + `board.resolve_personal_board_id`/`get_personal_board_id`; thread explicit `board_id` through `get_board`, `rename_column`, `create_card`, `update_card`, `delete_card`, `get_column_id_by_key`, `get_recent_messages`, `add_message`
+- [x] Add `board.list_boards()` (personal + all projects)
+- [x] Add `GET /api/boards`, `POST /api/projects` (403 for non-demo users, 409 on duplicate name); make `board_id` optional on `GET /api/board`, `GET /api/messages`, `POST /api/chat`
+- [x] Thread `board_id` through `chat.py`'s system prompt + update-application helpers
+- [x] Add `useBoards()`, extend `useKanbanBoard`/`useChat` to accept and react to `boardId`
+- [x] Build `BoardSwitcher` (username entry, project list, "+ New project" gated on `username === "user"`); wire into `Board.tsx`/`App.tsx` (`useAuth` now also exposes `username`)
+- [x] Add backend tests: schema migration, `create_project`, project cards visible/editable by a second user, personal-board access denied cross-user, default (`board_id` omitted) behavior unchanged, project creation 403/409, chat scoped to a project's `board_id`
+- [x] Add frontend tests: `BoardSwitcher` rendering/selection/creation, `useKanbanBoard`/`useChat` refetch-on-`boardId`-change, full switch-board-and-see-different-cards flow in `App.test.tsx`
+- [x] Manually verify in a running instance: `user` creates `project1` and adds a card; a second signed-up account switches to `project1`, sees that card, and adds their own; both accounts' personal boards stay private and unaffected; the "+ New project" control is absent for the second account; AI chat scoping to a project verified via the mocked-client backend test (`test_projects.py`), not a live-key browser smoke test, to avoid touching the user's own running container/API key
+
+### Tests / success criteria
+
+- [x] Backend test suite passes (66/66), including new `test_projects.py` and the `test_db.py`/`test_board.py` additions
+- [x] Frontend test suite passes (47/47), including the new `BoardSwitcher.test.tsx` and hook/integration additions
+- [x] `npm run build` compiles with no TypeScript errors
+- [x] Manual verification of the full shared-project flow (creation, cross-user visibility, access control) via a real browser against a fresh database, plus a separate `boards`-table migration check against a simulated pre-Part-12 database with real card data - both clean, zero console/page errors

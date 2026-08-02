@@ -12,3 +12,9 @@ export interface Card {
   description: string;
   order: number;
 }
+
+export interface BoardSummary {
+  id: string;
+  type: "personal" | "project";
+  name: string | null;
+}

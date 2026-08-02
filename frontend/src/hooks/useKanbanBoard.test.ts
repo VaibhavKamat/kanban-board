@@ -112,4 +112,23 @@ describe("useKanbanBoard", () => {
 
     expect(result.current.cards).toEqual([]);
   });
+
+  it("refetches when boardId changes", async () => {
+    const { result, rerender } = renderHook(({ boardId }) => useKanbanBoard(boardId), {
+      initialProps: { boardId: "board-1" as string | null },
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(mockedApi.getBoard).toHaveBeenCalledWith("board-1");
+
+    const otherBoard: api.Board = {
+      columns: [{ id: "col-2", key: "todo", name: "To Do", order: 0 }],
+      cards: [],
+    };
+    mockedApi.getBoard.mockResolvedValue(otherBoard);
+
+    rerender({ boardId: "board-2" });
+
+    await waitFor(() => expect(result.current.columns).toEqual(otherBoard.columns));
+    expect(mockedApi.getBoard).toHaveBeenCalledWith("board-2");
+  });
 });

@@ -10,22 +10,24 @@ import {
 } from "@/lib/board-utils";
 import type { Card, Column } from "@/types/kanban";
 
-export function useKanbanBoard() {
+export function useKanbanBoard(boardId?: string | null) {
   const [columns, setColumns] = useState<Column[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoading(true);
     api
-      .getBoard()
+      .getBoard(boardId)
       .then((board) => {
         setColumns(board.columns);
         setCards(board.cards);
+        setError(null);
       })
       .catch(() => setError("Failed to load board"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [boardId]);
 
   function applyBoard(board: api.Board) {
     setColumns(board.columns);

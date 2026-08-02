@@ -57,14 +57,14 @@ referencing it by its fixed `key`.
 Always reply conversationally via `reply`, describing what you did or answering the question."""
 
 
-def _build_system_prompt(username: str) -> str:
-    current_board = board.get_board(username)
+def _build_system_prompt(username: str, board_id: int) -> str:
+    current_board = board.get_board(username, board_id)
     return SYSTEM_PROMPT_TEMPLATE.format(board_json=json.dumps(current_board))
 
 
-def _apply_card_update(username: str, card: CardUpdate) -> None:
+def _apply_card_update(username: str, board_id: int, card: CardUpdate) -> None:
     try:
-        column_id = board.get_column_id_by_key(username, card.column_key)
+        column_id = board.get_column_id_by_key(username, board_id, card.column_key)
     except LookupError:
         return
 
@@ -94,23 +94,26 @@ def _apply_card_update(username: str, card: CardUpdate) -> None:
         pass
 
 
-def _apply_column_update(username: str, column: ColumnUpdate) -> None:
+def _apply_column_update(username: str, board_id: int, column: ColumnUpdate) -> None:
     try:
-        column_id = board.get_column_id_by_key(username, column.key)
+        column_id = board.get_column_id_by_key(username, board_id, column.key)
         board.rename_column(username, column_id, column.name)
     except LookupError:
         pass
 
 
-def _apply_board_update(username: str, update: BoardUpdate) -> None:
+def _apply_board_update(username: str, board_id: int, update: BoardUpdate) -> None:
     for card in update.cards:
-        _apply_card_update(username, card)
+        _apply_card_update(username, board_id, card)
     for column in update.columns:
-        _apply_column_update(username, column)
+        _apply_column_update(username, board_id, column)
 
 
-def chat(username: str, message: str) -> dict:
-    history = board.get_recent_messages(username, limit=HISTORY_LIMIT)
+def chat(username: str, message: str, board_id: Optional[int] = None) -> dict:
+    if board_id is None:
+        board_id = board.get_personal_board_id(username)
+
+    history = board.get_recent_messages(username, board_id, limit=HISTORY_LIMIT)
     messages = [{"role": m["role"], "content": m["content"]} for m in history]
     messages.append({"role": "user", "content": message})
 
@@ -118,7 +121,7 @@ def chat(username: str, message: str) -> dict:
     response = client.messages.parse(
         model=MODEL,
         max_tokens=1024,
-        system=_build_system_prompt(username),
+        system=_build_system_prompt(username, board_id),
         messages=messages,
         output_format=ChatResponse,
     )
@@ -127,9 +130,9 @@ def chat(username: str, message: str) -> dict:
     if parsed is None:
         parsed = ChatResponse(reply="Sorry, I couldn't process that. Could you rephrase?")
     elif parsed.board_update is not None:
-        _apply_board_update(username, parsed.board_update)
+        _apply_board_update(username, board_id, parsed.board_update)
 
-    board.add_message(username, "user", message)
-    board.add_message(username, "assistant", parsed.reply)
+    board.add_message(username, board_id, "user", message)
+    board.add_message(username, board_id, "assistant", parsed.reply)
 
-    return {"reply": parsed.reply, "board": board.get_board(username)}
+    return {"reply": parsed.reply, "board": board.get_board(username, board_id)}

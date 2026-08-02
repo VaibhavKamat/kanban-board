@@ -1,4 +1,4 @@
-import type { Card, Column } from "@/types/kanban";
+import type { BoardSummary, Card, Column } from "@/types/kanban";
 
 export interface Board {
   columns: Column[];
@@ -19,8 +19,20 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   return response.json();
 }
 
-export function getBoard(): Promise<Board> {
-  return request<Board>("/api/board");
+export function getBoard(boardId?: string | null): Promise<Board> {
+  const query = boardId ? `?board_id=${boardId}` : "";
+  return request<Board>(`/api/board${query}`);
+}
+
+export function listBoards(): Promise<BoardSummary[]> {
+  return request<{ boards: BoardSummary[] }>("/api/boards").then((r) => r.boards);
+}
+
+export function createProject(name: string): Promise<BoardSummary> {
+  return request<BoardSummary>("/api/projects", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
 }
 
 export function renameColumn(columnId: string, name: string): Promise<Board> {
@@ -70,8 +82,9 @@ export interface ChatMessage {
   content: string;
 }
 
-export function getMessages(): Promise<ChatMessage[]> {
-  return request<{ messages: ChatMessage[] }>("/api/messages").then((r) => r.messages);
+export function getMessages(boardId?: string | null): Promise<ChatMessage[]> {
+  const query = boardId ? `?board_id=${boardId}` : "";
+  return request<{ messages: ChatMessage[] }>(`/api/messages${query}`).then((r) => r.messages);
 }
 
 export interface ChatResult {
@@ -79,9 +92,9 @@ export interface ChatResult {
   board: Board;
 }
 
-export function sendChatMessage(message: string): Promise<ChatResult> {
+export function sendChatMessage(message: string, boardId?: string | null): Promise<ChatResult> {
   return request<ChatResult>("/api/chat", {
     method: "POST",
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, board_id: boardId ?? undefined }),
   });
 }
